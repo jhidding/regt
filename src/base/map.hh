@@ -31,26 +31,29 @@ namespace System
 				source(source_), f(f_) {}
 
 			class const_iterator: 
-				public src_iterator,
 				public std::iterator<std::forward_iterator_tag, value_type>
 			{
+				src_iterator base;
 				func_type f;
 
 				public:
 					const_iterator(Map const &obj_, src_iterator i):
-						src_iterator(i), 
-						f(obj_.f)
+						base(i), f(obj_.f)
 					{}
 
 					value_type operator*() const
 					{
-						return f(src_iterator::operator*());
+						return f(*base);
 					}
 
 					arg_type arg() const
 					{
-						return src_iterator::operator*();
+						return *base;
 					}
+
+					bool operator==(const_iterator const &o) const { return base == o.base; }
+					bool operator!=(const_iterator const &o) const { return base != o.base; }
+					const_iterator &operator++() { ++base; return *this; }
 			};
 
 			size_t size() const { return source.size(); }

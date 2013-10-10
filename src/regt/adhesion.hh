@@ -10,11 +10,16 @@
 #include <CGAL/Regular_triangulation_euclidean_traits_3.h>
 
 #include "../base/system.hh"
+#include "../base/boxconfig.hh"
+#include "../ply/ply.hh"
 #include <memory>
 
-namespace Adhesion {
+namespace Conan {
 
-template <int rank>
+using System::mVector;
+using System::Array;
+
+template <unsigned R>
 class Adhesion_traits;
 
 template <>
@@ -35,7 +40,11 @@ class Adhesion_traits<2>
 		static Point dVector2Point(mVector<double, 2> const &p)
 			{ return Point(p[0], p[1]); }
 
+		template <typename F>
+		static Point make_Point(F f) { return Point(f(0), f(1)); }
+
 		static int face_cnt(
+				System::ptr<System::BoxConfig<2>> box,
 				std::shared_ptr<RT> rt,
 				typename RT::Face_handle f)
 		{
@@ -43,13 +52,14 @@ class Adhesion_traits<2>
 			int c = 0;
 			for (unsigned j = 0; j < 3; ++j)
 			{
-				if (rt->segment(f, j).squared_length() > 3.0)
+				if (rt->segment(f, j).squared_length() > 3.0 * box->scale2())
 					++c;
 			}
 			return c;
 		}
 
 		static void _for_each_big_dual_segment(
+				System::ptr<System::BoxConfig<2>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Segment const &, double)> const &f)
 		{
@@ -67,6 +77,15 @@ class Adhesion_traits<2>
 			});
 		}
 
+		static void _for_each_big_dual_face(
+				System::ptr<System::BoxConfig<2>> box,
+				std::shared_ptr<RT> rt, 
+				std::function<void (Array<Point>, double)> const &f)
+		{
+			std::cerr << "the 2d tessellation has no walls.\n";
+			throw "error";
+		}
+
 		static void _for_each_segment(
 				std::shared_ptr<RT> rt,
 				std::function<void (Segment const &s)> const &f)
@@ -81,6 +100,7 @@ class Adhesion_traits<2>
 		}
 
 		static void _for_each_cluster(
+				System::ptr<System::BoxConfig<2>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Point const &, double)> const &f)
 		{
@@ -89,7 +109,7 @@ class Adhesion_traits<2>
 			{
 				Triangle t = rt->triangle(i);
 				
-				if (face_cnt(rt, i) == 3) 
+				if (face_cnt(box, rt, i) == 3) 
 					f(rt->dual(i), t.area());
 			}
 		}
@@ -111,7 +131,11 @@ class Adhesion_traits<3>
 		static Point dVector2Point(mVector<double, 3> const &p)
 			{ return Point(p[0], p[1], p[2]); }
 
+		template <typename F>
+		static Point make_Point(F f) { return Point(f(0), f(1), f(2)); }
+
 		static int face_cnt(
+				System::ptr<System::BoxConfig<3>> box,
 				std::shared_ptr<RT> rt,
 				RT::Cell_handle const &h)
 		{
@@ -120,7 +144,7 @@ class Adhesion_traits<3>
 			{
 				for (unsigned j = 0; j < i; ++j)
 				{
-					if (rt->segment(h, i, j).squared_length() / BoxConfig::scale2() > 3.0)
+					if (rt->segment(h, i, j).squared_length() / box->scale2() > 3.0)
 						++cnt;
 				}
 			}
@@ -129,6 +153,7 @@ class Adhesion_traits<3>
 		}
 				
 		static void _for_each_big_dual_segment(
+				System::ptr<System::BoxConfig<3>> box,
 				std::shared_ptr<RT> rt, 
 				std::function<void (Segment const &, double)> const &f)
 		{
@@ -141,9 +166,35 @@ class Adhesion_traits<3>
 				Segment s;
 				if (CGAL::assign(s, o))
 				{
-					if (face_cnt(rt, e.first) + face_cnt(rt, rt->mirror_facet(e).first) >= 10) 
+					if (face_cnt(box, rt, e.first) + face_cnt(box, rt, rt->mirror_facet(e).first) >= 10) 
 						f(s, rt->triangle(e).squared_area());
 				}
+			});
+		}
+
+		static void _for_each_big_dual_face(
+				System::ptr<System::BoxConfig<3>> box,
+				std::shared_ptr<RT> rt, 
+				std::function<void (Array<Point>, double)> const &f)
+		{
+			std::for_each(
+				rt->finite_edges_begin(),
+				rt->finite_edges_end(),
+				[&] (typename RT::Edge const &e)
+			{
+				double l = rt->segment(e).squared_length();
+				if (l / box->scale2() < 3.0) return;
+
+				auto cells = rt->incident_cells(e), c = cells; ++c;
+				if (rt->is_infinite(cells)) return;
+				Array<Point> P(0); P->push_back(rt->dual(cells));
+				for (; c != cells; ++c)
+				{
+					if (rt->is_infinite(c)) return;
+					else P->push_back(rt->dual(c));
+				}
+
+				f(P, l);
 			});
 		}
 
@@ -161,20 +212,28 @@ class Adhesion_traits<3>
 		}
 
 		static void _for_each_cluster(
+				System::ptr<System::BoxConfig<3>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Point const &, double)> const &f)
 		{
 			for(auto i = rt->finite_cells_begin();
 				i != rt->finite_cells_end(); ++i)
 			{
-				if (face_cnt(rt, i) == 6) 
+				if (face_cnt(box, rt, i) == 6) 
 					f(rt->dual(i), rt->tetrahedron(i).volume());
 			}
+		}
+
+		static void _to_ply_file()
+		{
+			// map Cell_handles to indices into the array of
+			// vertices found in the Voronoi diagram.
+			std::map<RT::Cell_handle, unsigned> V;
 		}
 };
 
 
-template <int R>
+template <unsigned R>
 class Adhesion: public Adhesion_traits<R>
 {
 	public:
@@ -189,28 +248,33 @@ class Adhesion: public Adhesion_traits<R>
 		typedef typename RT::Vertex Vertex;
 		
 	private:
-		std::shared_ptr<RT> rt;
+		System::ptr<System::BoxConfig<R>> box;
+		System::ptr<RT> rt;
 		std::vector<Weighted_point> pts;
 
-		Adhesion():
-			rt(new RT)
-		{}
-
 	public:
-		static std::shared_ptr<Adhesion> create(
-			std::shared_ptr<Cube<double>> rf);
+		Adhesion(System::ptr<System::BoxConfig<R>> box_): 
+			box(box_), rt(new RT) {}
+
+		static System::ptr<Adhesion> create(System::ptr<System::BoxConfig<R>>, System::Array<double>, double);
 		
 		template <typename Iter>
 		void insert(Iter begin, Iter end)
 		{
 			std::copy(begin, end, std::back_inserter(pts));
-			rt->insert(begin, end);
+			rt->insert(pts.begin(), pts.end());
 		}
 
 		void for_each_big_dual_segment(
 				std::function<void (Segment const &, double)> const &f)
 		{
-			Adhesion_traits<R>::_for_each_big_dual_segment(rt, f);
+			Adhesion_traits<R>::_for_each_big_dual_segment(box, rt, f);
+		}
+
+		void for_each_big_dual_face(
+				std::function<void (Array<Point>, double)> const &f)
+		{
+			Adhesion_traits<R>::_for_each_big_dual_face(box, rt, f);
 		}
 
 		void for_each_segment(
@@ -222,29 +286,37 @@ class Adhesion: public Adhesion_traits<R>
 		void for_each_cluster(
 				std::function<void (Point const &, double)> const &f)
 		{
-			Adhesion_traits<R>::_for_each_cluster(rt, f);
+			Adhesion_traits<R>::_for_each_cluster(box, rt, f);
 		}
 };
 
-template <int R>
-std::shared_ptr<Adhesion<R>> Adhesion<R>::create(
-	std::shared_ptr<Cube<double>> rf)
+template <unsigned R>
+System::ptr<Adhesion<R>> Adhesion<R>::create(
+	System::ptr<System::BoxConfig<R>> box, System::Array<double> phi, double t)
 {
-	unsigned	N 	= BoxConfig::N();
-	float		L	= BoxConfig::L();
+	System::cVector<R> b(box->bits());
 
-	std::vector<Point> X;
-	Spaces::GridSpace<double, R> G(N, L);
-	std::transform(G.begin(), G.end(), rf->begin(), std::back_inserter(X),
-		[] (mVector<double, R> const &x, double w)
+	auto point_set = System::map(System::Range<size_t>(box->size()),
+		[&] (size_t x) -> Weighted_point
 	{
-		Point Q = Adhesion<R>::dVector2Point(x);
-		return Weighted_point(Q, w);
+		Point Q = Adhesion<R>::make_Point(
+			[&] (unsigned k) -> double
+		{ return box->scale() * b.i(x, k); });
+
+		return Weighted_point(Q, phi[x] * 2 * t);
 	});
 
-	std::shared_ptr<Adhesion<R>> adh(new Adhesion<R>);
-	adh->insert(X.begin(), X.end());
+	/*
+	for (auto p : point_set)
+	{
+		std::cout << p << " " << p.weight() <<  std::endl;
+	}
+	*/
+
+	auto adh = System::make_ptr<Adhesion<R>>(box);
+	adh->insert(point_set.begin(), point_set.end());
 
 	return adh;
 }
+
 }

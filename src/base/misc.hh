@@ -95,23 +95,26 @@ namespace System
 	/*! 
 	 * generates a range of integers
 	 */
+	template <typename T = unsigned>
 	class Range
 	{
-		unsigned k;
+		T k;
 
 		public:
-			Range(unsigned k_): k(k_) {}
+			typedef T value_type;
+
+			Range(T k_): k(k_) {}
 			
 			class const_iterator: 
-				public std::iterator<std::forward_iterator_tag, unsigned>
+				public std::iterator<std::forward_iterator_tag, T>
 			{
-				unsigned i;
+				T i;
 				public:
-					const_iterator(unsigned i_): i(i_) {}
+					const_iterator(T i_): i(i_) {}
 					const_iterator &operator++() { ++i; return *this; }
 					bool operator==(const_iterator const &o) const { return i == o.i; }
 					bool operator!=(const_iterator const &o) const { return i != o.i; }
-					unsigned operator*() const { return i; }
+					T operator*() const { return i; }
 			};
 
 			const_iterator begin() const { return const_iterator(0); }

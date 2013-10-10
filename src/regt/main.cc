@@ -1,24 +1,53 @@
 #include "../base/system.hh"
 #include "../base/format.hh"
+#include "adhesion.hh"
 
+#include <iostream>
 #include <fstream>
 
 using namespace System;
+using namespace Conan;
 
-template <int R>
+std::ostream &operator<<(std::ostream &out, typename Adhesion<2>::Point const &p)
+{ return out << p[0] << " " << p[1]; }
+std::ostream &operator<<(std::ostream &out, typename Adhesion<3>::Point const &p)
+{ return out << p[0] << " " << p[1] << " " << p[2]; }
+
+template <unsigned R>
+void write_adhesion(std::ostream &out, ptr<Adhesion<R>> adh)
+{
+	adh->for_each_big_dual_segment([&] (typename Adhesion<R>::Segment const &s, double v)
+	{
+		typename Adhesion<R>::Point a = s.start(), b = s.end();
+		out << a << " " << v << "\n" << b << " " << v << "\n\n\n";
+	});
+
+	adh->for_each_big_dual_face([&] (Array<typename Adhesion<R>::Point> P, double v)
+	{
+		for (auto p : P)
+			out << p << " " << v << "\n";
+		out << "\n\n";
+	});
+}
+
+void write_to_ply(ptr<Adhesion<R>> adh, std::string const &id)
+{
+}
+
+template <unsigned R>
 void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 {
-	auto box = make_ptr<BoxConfig<R>>(H.get<unsigned>("mbits"), H.get<float>("L"));
+	auto box = make_ptr<BoxConfig<R>>(H.get<unsigned>("mbits"), H.get<float>("size"));
 	double t = H.get<double>("time");
 
 	//==================================================
 	// compute the Regular Triangulation
 	//==================================================
 	std::cerr << "creating triangulation ... ";
-	auto adh = compute_adhesion<R>(box, t, phi);
+	auto adh = Adhesion<R>::create(box, phi, t);
 	std::cerr << "[done]\n";
 
-	cout << "writing needed info ... ";
+	std::cerr << "writing needed info ... ";
 	write_adhesion<R>(fo, adh);
 }
 
@@ -45,8 +74,7 @@ void cmd_regt(int argc, char **argv)
 		exit(0);
 	}
 
-	std::string fn_input = timed_filename(argv["id"], "density", -1);
-	std::string fn_output = timed_filename(argv["id"], "regt", -1);
+	std::string fn_input = timed_filename(C["id"], "density", -1);
 
 	// read initial potential from file.
 	std::ifstream fi;
@@ -58,16 +86,18 @@ void cmd_regt(int argc, char **argv)
 	fi.close();
 
 	// add current command to history.
-	I << argv;
+	H << C; I << C;
+	double t = H.get<double>("time");
+	std::string fn_output = timed_filename(C["id"], "regt", t);
 
 	// write headers to file.
 	std::ofstream fo;
 	fo.open(fn_output.c_str(), std::ios::out | std::ios::binary);
-	H.to_file(fo);
-	I.to_file(fo);
+	H.to_txt_file(fo);
+	I.to_txt_file(fo);
 
 	// give some reassuring output.
-	std::cerr << "box: " << box->N() << " data: " << potential.size() << std::endl;
+	//std::cerr << "box: " << box->N() << " data: " << potential.size() << std::endl;
 
 	// run 2 or 3 dimensional version.
 	switch (H.get<unsigned>("dim"))

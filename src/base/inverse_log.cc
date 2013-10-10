@@ -8,7 +8,7 @@ using namespace System;
 InverseLog::InverseLog(unsigned b)
 	: std::vector<size_t>(size_t(1) << b), bits(b)
 {
-	Range I(size());
+	Range<unsigned> I(size());
 	std::transform(I.begin(), I.end(), begin(), *this);
 }
 

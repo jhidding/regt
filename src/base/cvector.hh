@@ -180,6 +180,12 @@ namespace System
 			}
 
 			inline
+			size_t unit(unsigned i) const
+			{
+				return 1U << (b * i);
+			}
+
+			inline
 			unsigned bits() const 
 			{ 
 				return b; 
@@ -285,6 +291,38 @@ namespace System
 				size_t n = 0;
 				for (unsigned j = 0; j < R; ++j)
 					n |= ilg[i(r, j)] << (b * j);
+				return n;
+			}
+
+			inline size_t double_grid(size_t r) const
+			{
+				size_t n = 0;
+				for (unsigned j = 0; j < R; ++j)
+					n |= idx(r, j) << (1 + j);
+				return n;
+			}
+
+			inline size_t half_grid(size_t r) const
+			{
+				size_t n = 0;
+				for (unsigned j = 0; j < R; ++j)
+					n |= (r & (mask(j) - unit(j))) >> (1 + j);
+				return n;
+			}
+
+			inline size_t add_half(size_t r, size_t s) const
+			{
+				size_t n = 0;
+				for (unsigned j = 0; j < R; ++j)
+					n |= ((idx(r, j) + idx(s, j)) & (mask(j) - unit(j))) >> (1 + j);
+				return n;
+			}
+
+			inline uint8_t count_odd(size_t r) const
+			{
+				uint8_t n = 0;
+				for (unsigned j = 0; j < R; ++j)
+					n += i(r, j) & 1;
 				return n;
 			}
 	};
