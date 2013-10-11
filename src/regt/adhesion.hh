@@ -18,6 +18,9 @@ namespace Conan {
 
 using System::mVector;
 using System::Array;
+using System::ptr;
+using System::BoxConfig;
+using Misc::PLY;
 
 template <unsigned R>
 class Adhesion_traits;
@@ -112,6 +115,14 @@ class Adhesion_traits<2>
 				if (face_cnt(box, rt, i) == 3) 
 					f(rt->dual(i), t.area());
 			}
+		}
+
+		static void _walls_to_ply_file(
+			ptr<BoxConfig<2>> box, ptr<RT> rt, 
+			std::string const &filename)
+		{
+			std::cerr << "the 2d tessellation has no walls.\n";
+			throw "error";
 		}
 };
 
@@ -224,11 +235,73 @@ class Adhesion_traits<3>
 			}
 		}
 
-		static void _to_ply_file()
+		static void _walls_to_ply_file(
+			ptr<BoxConfig<3>> box, ptr<RT> rt, 
+			std::string const &filename)
 		{
 			// map Cell_handles to indices into the array of
 			// vertices found in the Voronoi diagram.
-			std::map<RT::Cell_handle, unsigned> V;
+			std::map<RT::Cell_handle, unsigned> V_map;
+			std::vector<Point> V;
+			auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
+			{
+				if (V_map.count(h) == 0)
+				{
+					unsigned q = V.size();
+					V_map[h] = q;
+					V.push_back(rt->dual(h));
+					return q;
+				}
+				else
+				{
+					return V_map[h];
+				}
+			};
+
+			std::vector<std::pair<Array<unsigned>,double>> W;
+			std::for_each(
+				rt->finite_edges_begin(),
+				rt->finite_edges_end(),
+				[&] (typename RT::Edge const &e)
+			{
+				double l = rt->segment(e).squared_length();
+				if (l / box->scale2() < 4.0) return;
+
+				Array<unsigned> P(0);
+				auto cells = rt->incident_cells(e), c = cells; ++c;
+				if (not rt->is_infinite(cells))
+					P->push_back(cell_dual(cells));
+
+				for (; c != cells; ++c)
+					if (not rt->is_infinite(c))
+						P->push_back(cell_dual(c));
+
+				W.push_back(std::pair<Array<unsigned>,double>(P, l));
+			});
+
+			PLY ply;
+			ply.add_comment("Adhesion model, wall component.");
+			
+			ply.add_element("vertex", 
+				PLY::scalar_type<float>("x"), 
+				PLY::scalar_type<float>("y"), 
+				PLY::scalar_type<float>("z"));
+			for (Point const &v : V)
+				ply.put_data(
+					PLY::scalar<float>(v[0]),
+					PLY::scalar<float>(v[1]),
+					PLY::scalar<float>(v[2]));
+
+			ply.add_element("face",
+				PLY::list_type<int>("vertex_index"),
+				PLY::scalar_type<float>("density"));
+			for (auto f : W)
+				if (f.first.size() > 2)
+				    ply.put_data(
+					PLY::list<int>(f.first),
+					PLY::scalar<float>(f.second));
+
+			ply.write(filename, PLY::BINARY);
 		}
 };
 
@@ -287,6 +360,11 @@ class Adhesion: public Adhesion_traits<R>
 				std::function<void (Point const &, double)> const &f)
 		{
 			Adhesion_traits<R>::_for_each_cluster(box, rt, f);
+		}
+
+		void walls_to_ply_file(std::string const &filename)
+		{
+			Adhesion_traits<R>::_walls_to_ply_file(box, rt, filename);
 		}
 };
 

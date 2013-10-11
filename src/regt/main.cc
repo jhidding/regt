@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 
 using namespace System;
 using namespace Conan;
@@ -14,24 +16,13 @@ std::ostream &operator<<(std::ostream &out, typename Adhesion<3>::Point const &p
 { return out << p[0] << " " << p[1] << " " << p[2]; }
 
 template <unsigned R>
-void write_adhesion(std::ostream &out, ptr<Adhesion<R>> adh)
+void write_adhesion_txt(std::ostream &out, ptr<Adhesion<R>> adh)
 {
 	adh->for_each_big_dual_segment([&] (typename Adhesion<R>::Segment const &s, double v)
 	{
 		typename Adhesion<R>::Point a = s.start(), b = s.end();
 		out << a << " " << v << "\n" << b << " " << v << "\n\n\n";
 	});
-
-	adh->for_each_big_dual_face([&] (Array<typename Adhesion<R>::Point> P, double v)
-	{
-		for (auto p : P)
-			out << p << " " << v << "\n";
-		out << "\n\n";
-	});
-}
-
-void write_to_ply(ptr<Adhesion<R>> adh, std::string const &id)
-{
 }
 
 template <unsigned R>
@@ -48,7 +39,14 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 	std::cerr << "[done]\n";
 
 	std::cerr << "writing needed info ... ";
-	write_adhesion<R>(fo, adh);
+	std::ostringstream ss;
+	ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
+	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply");
+	switch (R)
+	{
+		case 2: write_adhesion_txt<R>(fo, adh); break;
+		case 3: adh->walls_to_ply_file(fn_ply); break;
+	}
 }
 
 void cmd_regt(int argc, char **argv)

@@ -15,7 +15,7 @@
 #	hidden directory (or somewhere outside the directory
 #	structure, which is even better)
 
-target="dmt2d"
+target="regt"
 objdir="obj"
 LDFLAGS="-L${LOCALPATH}/lib -lm -lrt -lfftw3 -lgsl -lgslcblas -lCGAL -lgmp -lboost_thread -lmpfr"
 CFLAGS="-I${LOCALPATH}/include -g -std=c++0x -O2 -frounding-math"
