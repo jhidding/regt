@@ -293,13 +293,13 @@ class Adhesion_traits<3>
 					PLY::scalar<float>(v[2]));
 
 			ply.add_element("face",
-				PLY::list_type<int>("vertex_index"),
-				PLY::scalar_type<float>("density"));
+				PLY::list_type<int>("vertex_index"));
+				//PLY::scalar_type<float>("density"));
 			for (auto f : W)
 				if (f.first.size() > 2)
 				    ply.put_data(
-					PLY::list<int>(f.first),
-					PLY::scalar<float>(f.second));
+					PLY::list<int>(f.first));
+				//	PLY::scalar<float>(f.second));
 
 			ply.write(filename, PLY::BINARY);
 		}
