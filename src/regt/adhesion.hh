@@ -135,6 +135,7 @@ class Adhesion_traits<3>
 		typedef CGAL::Regular_triangulation_3<Traits> RT;
 
 		typedef RT::Point		Point;
+		//typedef RT::Vector		Vector;
 		typedef RT::Weighted_point	Weighted_point;
 		typedef RT::Segment		Segment;
 		typedef RT::Tetrahedron		Tetrahedron;
@@ -242,7 +243,7 @@ class Adhesion_traits<3>
 			// map Cell_handles to indices into the array of
 			// vertices found in the Voronoi diagram.
 			std::map<RT::Cell_handle, unsigned> V_map;
-			std::vector<Point> V;
+			std::vector<Point> V; std::vector<double> M;
 			auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
 			{
 				if (V_map.count(h) == 0)
@@ -250,6 +251,7 @@ class Adhesion_traits<3>
 					unsigned q = V.size();
 					V_map[h] = q;
 					V.push_back(rt->dual(h));
+					M.push_back(rt->tetrahedron(h).volume());
 					return q;
 				}
 				else

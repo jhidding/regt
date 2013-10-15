@@ -36,11 +36,11 @@ namespace Misc
 				}
 			}
 
-			void finish()
+			void finish(bool newline = true)
 			{
 				j = 50;
 				draw();
-				std::cerr << std::endl;
+				if (newline) std::cerr << std::endl;
 			}
 
 			void draw() const

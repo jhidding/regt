@@ -17,7 +17,7 @@
 
 target="regt"
 objdir="obj"
-LDFLAGS="-L${LOCALPATH}/lib -lm -lrt -lfftw3 -lgsl -lgslcblas -lCGAL -lgmp -lboost_thread -lmpfr"
+LDFLAGS="-L${LOCALPATH}/lib -lm -lrt -lfftw3 -lgsl -lgslcblas -lCGAL -lgmp -lboost_thread -lmpfr -frounding-math"
 CFLAGS="-I${LOCALPATH}/include -g -std=c++0x -O2 -frounding-math"
 
 CC="g++"

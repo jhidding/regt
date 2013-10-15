@@ -4,7 +4,7 @@
 #include <functional>
 #include <algorithm>
 
-#include "../base/mvector.h"
+#include "../base/mvector.hh"
 
 /*
  * KdTree algorithm
@@ -122,5 +122,5 @@ class Leaf: public Branch<Point, R>
 
 } // namespace kdTree
 
-#include "kdtree_implementation.h"
+#include "kdtree_implementation.ih"
 
