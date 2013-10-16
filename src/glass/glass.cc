@@ -21,7 +21,7 @@ void make_particle_glass(std::ostream &fo, Header const &H)
 	double L = H.get<double>("size");
 	size_t seed = H.get<size_t>("seed");
 
-	double frac = H.get<double>("frac");
+	double frac = H.get<double>("frac"), radius = H.get<double>("radius");
 	unsigned steps = H.get<unsigned>("steps");
 
 	Array<Point> X(M), F(M);
@@ -63,39 +63,28 @@ void make_particle_glass(std::ostream &fo, Header const &H)
 		}
 
 		Misc::ProgressBar PB(M, Misc::format("iteration ", i, " ..."));
+
+		#pragma omp parallel for
 		for (size_t p = 0; p < M; ++p)
 		{
-			double a = 0.01, b = 10.0 * mu;
+			double a = 0.01, b = radius * mu;
 
 			Glass::Force<R> f(L, X[p]);
 			T.traverse(f, Glass::Annulus<R>(L, X[p], a, b));
-			F[p] = f.sum(); F_sum += F[p].norm();
-
-			/*
-			while (true)
+			F[p] = f.sum(); 
+			
+			#pragma omp critical 
 			{
-				Glass::Force<R> f(X[p]); Point total = 0;
-				T.traverse(f, Glass::Annulus<R>(X[p], a, b));
-				total += f.sum();
-
-				if (f.sum().sqr() / total.sqr() < 1e-4)
-				{
-					F[p] = total;
-					F_sum += total.norm();
-					break;
-				}
-
-				a = b; b += mu;
-			}*/
-
-			PB.tic();
+				F_sum += F[p].norm();
+				PB.tic();
+			}
 		}
 		PB.finish(false);
 
 		if (first_iteration)
 		{
 			z = mu * frac * M / F_sum;
-			std::cerr << " z-value: " << z << std::endl;
+			// std::cerr << " z-value: " << z << std::endl;
 		}
 
 		if (H.get<bool>("debug"))
@@ -151,7 +140,7 @@ void cmd_glass(int argc, char **argv)
 		Option({Option::VALUED | Option::CHECK, "d", "dim", "3",
 			"dimensions of the simulation, either 2 or 3."}),
 
-		Option({Option::VALUED | Option::CHECK, "b", "mbits", "8",
+		Option({Option::VALUED | Option::CHECK, "b", "mbits", "7",
 			"2-log of the number of particles N."}),
 
 		Option({Option::VALUED | Option::CHECK, "L", "size", "100.0",
@@ -160,11 +149,14 @@ void cmd_glass(int argc, char **argv)
 		Option({Option::VALUED | Option::CHECK, "", "seed", timed_seed,
 			"random seed."}),
 		
-		Option({Option::VALUED | Option::CHECK, "", "frac", "0.2",
+		Option({Option::VALUED | Option::CHECK, "", "frac", "1.0",
 			"mean step size in units of the mean particle separation, "
 			"approximated as L * (3 / 4 pi N)^(1/3). "}),
+
+		Option({Option::VALUED | Option::CHECK, "", "radius", "5",
+			"upper limit radius around each particle to integrate forces. "}),
 		
-		Option({Option::VALUED | Option::CHECK, "", "steps", "3",
+		Option({Option::VALUED | Option::CHECK, "", "steps", "5",
 			"number of iterations."}),
 		
 		Option({0, "", "debug", "false",
