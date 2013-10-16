@@ -12,6 +12,7 @@
 #include "../base/system.hh"
 #include "../base/boxconfig.hh"
 #include "../ply/ply.hh"
+#include "../misc/interpol.hh"
 #include <memory>
 
 namespace Conan {
@@ -260,6 +261,20 @@ class Adhesion_traits<3>
 				}
 			};
 
+			auto is_cell_ok = [&] (RT::Cell_handle const &h) -> bool
+			{
+				if (rt->is_infinite(h)) return false;
+				for (unsigned k = 0; k < 4; ++k)
+				{
+					Point p = rt->point(h, k);
+					for (unsigned k = 0; k < 3; ++k)
+						if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
+							return false;
+				}
+
+				return true;
+			};
+
 			std::vector<std::pair<Array<unsigned>,double>> W;
 			std::for_each(
 				rt->finite_edges_begin(),
@@ -271,11 +286,11 @@ class Adhesion_traits<3>
 
 				Array<unsigned> P(0);
 				auto cells = rt->incident_cells(e), c = cells; ++c;
-				if (not rt->is_infinite(cells))
+				if (is_cell_ok(cells))
 					P->push_back(cell_dual(cells));
 
 				for (; c != cells; ++c)
-					if (not rt->is_infinite(c))
+					if (is_cell_ok(c))
 						P->push_back(cell_dual(c));
 
 				W.push_back(std::pair<Array<unsigned>,double>(P, l));
@@ -332,6 +347,10 @@ class Adhesion: public Adhesion_traits<R>
 			box(box_), rt(new RT) {}
 
 		static System::ptr<Adhesion> create(System::ptr<System::BoxConfig<R>>, System::Array<double>, double);
+		static System::ptr<Adhesion<R>> create_from_glass(
+				System::ptr<System::BoxConfig<R>> box, 
+				System::Array<System::mVector<double,R>> glass, 
+				System::Array<double> phi, double t);
 		
 		template <typename Iter>
 		void insert(Iter begin, Iter end)
@@ -386,12 +405,30 @@ System::ptr<Adhesion<R>> Adhesion<R>::create(
 		return Weighted_point(Q, phi[x] * 2 * t);
 	});
 
-	/*
-	for (auto p : point_set)
+	auto adh = System::make_ptr<Adhesion<R>>(box);
+	adh->insert(point_set.begin(), point_set.end());
+
+	return adh;
+}
+
+template <unsigned R>
+System::ptr<Adhesion<R>> Adhesion<R>::create_from_glass(
+	System::ptr<System::BoxConfig<R>> box, 
+	System::Array<System::mVector<double,R>> glass, 
+	System::Array<double> phi, double t)
+{
+	System::cVector<R> b(box->bits());
+
+	Misc::Interpol::Linear<Array<double>,R> pot(box, phi);
+
+	auto point_set = System::map(glass,
+		[&] (System::mVector<double,R> const &x) -> Weighted_point
 	{
-		std::cout << p << " " << p.weight() <<  std::endl;
-	}
-	*/
+		Point Q = Adhesion<R>::make_Point(
+			[&] (unsigned k) -> double { return x[k]; });
+
+		return Weighted_point(Q, pot(x / box->scale()) * 2 * t);
+	});
 
 	auto adh = System::make_ptr<Adhesion<R>>(box);
 	adh->insert(point_set.begin(), point_set.end());

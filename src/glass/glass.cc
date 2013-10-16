@@ -30,10 +30,10 @@ void make_particle_glass(std::ostream &fo, Header const &H)
 	double mu, z;
 	switch (R)
 	{
-		case 2: mu = L * pow(1.0 / (2.0 * M_PI * M), 1./2);
+		case 2: mu = L * pow(M, -1./2) / 2.0;
 			break;
 
-		case 3: mu = L * pow(3.0 / (4.0 * M_PI * M), 1./3);
+		case 3: mu = 0.89298 * L * pow(3.0 / (4.0 * M_PI * M), 1./3);
 			break;
 	}
 
@@ -151,12 +151,13 @@ void cmd_glass(int argc, char **argv)
 		
 		Option({Option::VALUED | Option::CHECK, "", "frac", "1.0",
 			"mean step size in units of the mean particle separation, "
-			"approximated as L * (3 / 4 pi N)^(1/3). "}),
+			"approximated as Gamma[4/3] * L * (3 / 4 pi N)^(1/3). "}),
 
 		Option({Option::VALUED | Option::CHECK, "", "radius", "5",
-			"upper limit radius around each particle to integrate forces. "}),
+			"upper limit radius around each particle to integrate forces, in "
+		        "units of the mean particle separation."}),
 		
-		Option({Option::VALUED | Option::CHECK, "", "steps", "5",
+		Option({Option::VALUED | Option::CHECK, "", "steps", "10",
 			"number of iterations."}),
 		
 		Option({0, "", "debug", "false",

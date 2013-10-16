@@ -26,17 +26,38 @@ void write_adhesion_txt(std::ostream &out, ptr<Adhesion<R>> adh)
 }
 
 template <unsigned R>
-void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
+ptr<Adhesion<R>> make_adhesion(Header const &H, Array<double> phi)
 {
 	auto box = make_ptr<BoxConfig<R>>(H.get<unsigned>("mbits"), H.get<float>("size"));
 	double t = H.get<double>("time");
 
-	//==================================================
-	// compute the Regular Triangulation
-	//==================================================
-	std::cerr << "creating triangulation ... ";
-	auto adh = Adhesion<R>::create(box, phi, t);
-	std::cerr << "[done]\n";
+	if (H.get<bool>("glass"))
+	{
+		std::cerr << "reading glass ... \n";
+		std::ifstream fi(timed_filename(H["id"], "glass", -1));
+		System::Header 	gH(fi);
+		System::History gI(fi);
+
+		Array<mVector<double,R>> glass(fi);
+		std::cerr << "creating triangulation ... ";
+		auto adh = Adhesion<R>::create_from_glass(box, glass, phi, t);
+		std::cerr << "[done]\n";
+		return adh;
+	}
+	else
+	{
+		std::cerr << "creating triangulation ... ";
+		auto adh = Adhesion<R>::create(box, phi, t);
+		std::cerr << "[done]\n";
+		return adh;
+	}
+}
+
+template <unsigned R>
+void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
+{
+	double t = H.get<double>("time");
+	auto adh = make_adhesion<R>(H, phi);
 
 	std::cerr << "writing needed info ... ";
 	std::ostringstream ss;
@@ -61,6 +82,10 @@ void cmd_regt(int argc, char **argv)
 
 		Option({Option::VALUED | Option::CHECK, "i", "id", date_string(),
 			"identifier for filenames."}),
+
+		Option({0, "g", "glass", "false",
+			"use a glass file in stead of a regular grid pattern. "
+			"The file should be called <id>.glass.init.conan."}),
 		
 		Option({Option::VALUED | Option::CHECK, "t", "time", "1.0",
 			"growing mode parameter."}));
