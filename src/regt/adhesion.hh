@@ -136,6 +136,7 @@ class Adhesion_traits<3>
 		typedef CGAL::Regular_triangulation_3<Traits> RT;
 
 		typedef RT::Point		Point;
+		typedef RT::Edge		Edge;
 		//typedef RT::Vector		Vector;
 		typedef RT::Weighted_point	Weighted_point;
 		typedef RT::Segment		Segment;
@@ -234,6 +235,111 @@ class Adhesion_traits<3>
 			{
 				if (face_cnt(box, rt, i) == 6) 
 					f(rt->dual(i), rt->tetrahedron(i).volume());
+			}
+		}
+
+		static void _write_persistence(
+			ptr<BoxConfig<3>> box, ptr<RT> rt,
+			std::string const &fn_bmatrix, std::string const &fn_points)
+		{
+			std::map<RT::Cell_handle, unsigned> V_map;
+			std::vector<Point> V; std::vector<double> M;
+
+			auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
+			{
+				if (V_map.count(h) == 0)
+				{
+					unsigned q = V.size();
+					V_map[h] = q;
+					V.push_back(rt->dual(h));
+					M.push_back(rt->tetrahedron(h).volume());
+					return q;
+				}
+				else
+				{
+					return V_map[h];
+				}
+			};
+
+			auto is_cell_ok = [&] (RT::Cell_handle const &h) -> bool
+			{
+				if (rt->is_infinite(h)) return false;
+				for (unsigned k = 0; k < 4; ++k)
+				{
+					Point p = rt->point(h, k);
+					for (unsigned k = 0; k < 3; ++k)
+						if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
+							return false;
+				}
+
+				return true;
+			};
+
+			std::vector<std::pair<RT::Cell_handle,double>> cells;
+			std::for_each(rt->finite_cells_begin(), rt->finite_cells_end(), 
+				[&] (RT::Cell_handle const &h)
+			{
+				if (is_cell_ok(h))
+					cells.push_back(std::pair<RT::Cell_handle,double>(h, rt->tetrahedron(h).volume()));
+			});
+			std::sort(cells.begin(), cells.end(),
+				[&] (std::pair<RT::Cell_handle,double> const &a, 
+				     std::pair<RT::Cell_handle,double> const &b)
+			{
+				return b.second < a.second; // sort descending;
+			});
+
+			std::vector<std::pair<RT::Facet, double>> facets;
+			std::for_each(rt->finite_faces_begin(), rt->finite_cells_end(),
+				[&] (RT::Facet const &f)
+			{
+				RT::Cell_handle h1 = f.first, h2 = rt->mirror_facet(f).first;
+				if (is_cell_ok(h1) and is_cell_ok(h2))
+					facets.push_back(std::pair<RT::Facet,double>(f,
+						std::min(rt->tetrahedron(h1).volume(),
+							rt->tetrahedron(h2).volume())));
+			});
+			std::sort(facets.begin(), facets.end(),
+				[&] (std::pair<RT::Facet,double> const &a, 
+				     std::pair<RT::Facet,double> const &b)
+			{
+				return b.second < a.second; // sort descending;
+			});
+
+			std::vector<std::pair<RT::Edge, double>> edges;
+			std::for_each(rt->finite_edges_begin(), rt->finite_edges_end(),
+				[&] (RT::Edge const &e)
+			{
+				auto cells = rt->incident_cells(e), c = cells; ++c;
+				double v; 
+
+				if (is_cell_ok(cells))
+					v = rt->tetrahedron(cells).volume();
+				else return;
+
+				for (; c != cells; ++c)
+					if (is_cell_ok(c))
+						v = std::min(v, rt->tetrahedron(c).volume());
+					else return;
+
+				edges.push_back(std::pair<RT::Edge, double>(e, v));
+			});
+			std::sort(edges.begin(), edges.end(),
+				[&] (std::pair<RT::Edge,double> const &a, 
+				     std::pair<RT::Edge,double> const &b)
+			{
+				return b.second < a.second; // sort descending;
+			});
+
+			size_t ei = 0, fi = 0, ci = 0, cc = 0, fc = 0;
+			std::map<RT::Cell_handle, size_t> cm;
+			std::map<RT::
+			while (ei < edges.size())
+			{
+				if (ci < cells.size() and cells[ci].second >= facets[fi].second and cells[ci].second >= edges[ei].second)
+				{
+					cm[
+				}
 			}
 		}
 
