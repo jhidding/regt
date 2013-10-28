@@ -62,11 +62,18 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 	std::cerr << "writing needed info ... ";
 	std::ostringstream ss;
 	ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
-	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply");
+	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply"),
+		fn_bmatrix = Misc::format(H["id"], ".", ss.str(), ".bmatrix.txt"),
+		fn_points  = Misc::format(H["id"], ".", ss.str(), ".points.txt");
+
 	switch (R)
 	{
 		case 2: write_adhesion_txt<R>(fo, adh); break;
-		case 3: adh->walls_to_ply_file(fn_ply); break;
+		case 3: if (H.get<bool>("persistence"))
+				adh->write_persistence(fn_bmatrix, fn_points);
+			else
+				adh->walls_to_ply_file(fn_ply);
+			break;
 	}
 }
 
@@ -86,6 +93,10 @@ void cmd_regt(int argc, char **argv)
 		Option({0, "g", "glass", "false",
 			"use a glass file in stead of a regular grid pattern. "
 			"The file should be called <id>.glass.init.conan."}),
+
+		Option({0, "p", "persistence", "false",
+			"write the result in the form of persistence data, readable "
+			"by the [phat] package."}),
 		
 		Option({Option::VALUED | Option::CHECK, "t", "time", "1.0",
 			"growing mode parameter."}));

@@ -125,7 +125,44 @@ class Adhesion_traits<2>
 			std::cerr << "the 2d tessellation has no walls.\n";
 			throw "error";
 		}
+
+		static void _write_persistence(
+			ptr<BoxConfig<2>> box, ptr<RT> rt,
+			std::string const &fn_bmatrix, std::string const &fn_points)
+		{
+			std::cerr << "not yet implemented.\n";
+			throw "error";
+		}
 };
+
+template <typename T>
+class OPair: public std::pair<T,T>
+{
+	public:
+		OPair(T a, T b)
+		{
+			if (a < b) { this->first = a; this->second = b; }
+			else { this->first = b; this->second = a; }
+		}
+
+		bool operator<(OPair const &o) const
+		{
+			if (this->first < o.first) return true;
+			if (this->first == o.first) return this->second < o.second;
+			return false;
+		}
+
+		bool operator==(OPair const &o) const
+		{
+			return this->first == o.first and this->second == o.second;
+		}
+};
+
+template <typename T>
+std::ostream &operator<<(std::ostream &out, OPair<T> const &p)
+{
+	return out << p.first << " " << p.second;
+}
 
 template <>
 class Adhesion_traits<3>
@@ -276,12 +313,20 @@ class Adhesion_traits<3>
 			};
 
 			std::vector<std::pair<RT::Cell_handle,double>> cells;
-			std::for_each(rt->finite_cells_begin(), rt->finite_cells_end(), 
-				[&] (RT::Cell_handle const &h)
+			for (auto fc = rt->finite_cells_begin(); fc != rt->finite_cells_end(); ++fc)
+			{
+				if (is_cell_ok(fc))
+					cells.push_back(std::pair<RT::Cell_handle,double>(fc, 
+						rt->tetrahedron(fc).volume()));
+			}
+			/*
+			auto cell_adder = [&] (RT::Cell_handle const &h)
 			{
 				if (is_cell_ok(h))
 					cells.push_back(std::pair<RT::Cell_handle,double>(h, rt->tetrahedron(h).volume()));
-			});
+			};
+			std::for_each(rt->finite_cells_begin(), rt->finite_cells_end(), cell_adder);
+			*/
 			std::sort(cells.begin(), cells.end(),
 				[&] (std::pair<RT::Cell_handle,double> const &a, 
 				     std::pair<RT::Cell_handle,double> const &b)
@@ -290,7 +335,7 @@ class Adhesion_traits<3>
 			});
 
 			std::vector<std::pair<RT::Facet, double>> facets;
-			std::for_each(rt->finite_faces_begin(), rt->finite_cells_end(),
+			std::for_each(rt->finite_facets_begin(), rt->finite_facets_end(),
 				[&] (RT::Facet const &f)
 			{
 				RT::Cell_handle h1 = f.first, h2 = rt->mirror_facet(f).first;
@@ -331,16 +376,57 @@ class Adhesion_traits<3>
 				return b.second < a.second; // sort descending;
 			});
 
-			size_t ei = 0, fi = 0, ci = 0, cc = 0, fc = 0;
+			size_t ei = 0, fi = 0, ci = 0, oc = 0;
 			std::map<RT::Cell_handle, size_t> cm;
-			std::map<RT::
+			std::map<OPair<size_t>, size_t> fm;
+			auto get_facet_idx = [&] (RT::Facet const &f)
+			{
+				auto c1 = f.first, c2 = rt->mirror_facet(f).first;
+				return fm[OPair<size_t>(cm[c1], cm[c2])];
+			};
+
+			std::ofstream fo_bmatrix(fn_bmatrix), fo_points(fn_points);
 			while (ei < edges.size())
 			{
 				if (ci < cells.size() and cells[ci].second >= facets[fi].second and cells[ci].second >= edges[ei].second)
 				{
-					cm[
+					// write cell, vertex in E
+					cm[cells[ci].first] = oc;
+					fo_bmatrix << "0\n";
+					fo_points << rt->dual(cells[ci].first) << " " 
+						<< cells[ci].second << " " 
+						<< oc << std::endl;
+					++ci; ++oc;
+					continue;
 				}
+
+				if (fi < facets.size() and facets[fi].second >= edges[ei].second)
+				{
+					auto c1 = facets[fi].first.first,
+					     c2 = rt->mirror_facet(facets[fi].first).first;
+					// make OTuple from bounding cells of the facet
+					OPair<size_t> c(cm[c1], cm[c2]);
+					fm[c] = oc;
+
+					fo_bmatrix << "2 " << c << std::endl;
+					++fi; ++oc;
+					continue;
+				}
+
+				// else we add an edge
+				std::vector<size_t> C;
+				auto ifacs = rt->incident_facets(edges[ei].first), f = ifacs; ++f;
+				C.push_back(get_facet_idx(*ifacs));
+				for (; f != ifacs; ++f)
+					C.push_back(get_facet_idx(*f));
+
+				fo_bmatrix << C.size();
+				for (size_t i : C) fo_bmatrix << " " << i;
+				fo_bmatrix << std::endl;
+				++ei; ++oc;
 			}
+
+			fo_bmatrix.close(); fo_points.close();
 		}
 
 		static void _walls_to_ply_file(
@@ -492,6 +578,12 @@ class Adhesion: public Adhesion_traits<R>
 		void walls_to_ply_file(std::string const &filename)
 		{
 			Adhesion_traits<R>::_walls_to_ply_file(box, rt, filename);
+		}
+
+		void write_persistence(
+			std::string const &fn_bmatrix, std::string const &fn_points)
+		{
+			Adhesion_traits<R>::_write_persistence(box, rt, fn_bmatrix, fn_points);
 		}
 };
 
