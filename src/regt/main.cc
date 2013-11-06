@@ -64,13 +64,14 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 	ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
 	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply"),
 		fn_bmatrix = Misc::format(H["id"], ".", ss.str(), ".bmatrix.txt"),
-		fn_points  = Misc::format(H["id"], ".", ss.str(), ".points.txt");
+		fn_points  = Misc::format(H["id"], ".", ss.str(), ".points.txt"),
+		fn_values  = Misc::format(H["id"], ".", ss.str(), ".values.txt");
 
 	switch (R)
 	{
 		case 2: write_adhesion_txt<R>(fo, adh); break;
 		case 3: if (H.get<bool>("persistence"))
-				adh->write_persistence(fn_bmatrix, fn_points);
+				adh->write_persistence(fn_bmatrix, fn_points, fn_values);
 			else
 				adh->walls_to_ply_file(fn_ply);
 			break;

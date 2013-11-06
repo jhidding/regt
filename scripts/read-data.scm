@@ -2,6 +2,7 @@
   (export read-tables)
 
   (import (rnrs (6))
+	  (guile)
 	  (lib))
 
   (define read-lines
@@ -12,7 +13,7 @@
   (define find-car
     (lambda (pred lst)
       (let loop ((p1 '())
-  	       (p2 lst))
+  	         (p2 lst))
         (cond
   	((null? p2)      (values #f lst))
   	((pred (car p2)) (values p2 (reverse p1)))

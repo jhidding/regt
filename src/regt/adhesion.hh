@@ -128,7 +128,8 @@ class Adhesion_traits<2>
 
 		static void _write_persistence(
 			ptr<BoxConfig<2>> box, ptr<RT> rt,
-			std::string const &fn_bmatrix, std::string const &fn_points)
+			std::string const &fn_bmatrix, std::string const &fn_points,
+			std::string const &fn_values)
 		{
 			std::cerr << "not yet implemented.\n";
 			throw "error";
@@ -277,7 +278,8 @@ class Adhesion_traits<3>
 
 		static void _write_persistence(
 			ptr<BoxConfig<3>> box, ptr<RT> rt,
-			std::string const &fn_bmatrix, std::string const &fn_points)
+			std::string const &fn_bmatrix, std::string const &fn_points,
+			std::string const &fn_values)
 		{
 			std::map<RT::Cell_handle, unsigned> V_map;
 			std::vector<Point> V; std::vector<double> M;
@@ -385,7 +387,7 @@ class Adhesion_traits<3>
 				return fm[OPair<size_t>(cm[c1], cm[c2])];
 			};
 
-			std::ofstream fo_bmatrix(fn_bmatrix), fo_points(fn_points);
+			std::ofstream fo_bmatrix(fn_bmatrix), fo_points(fn_points), fo_values(fn_values);
 			while (ei < edges.size())
 			{
 				if (ci < cells.size() and cells[ci].second >= facets[fi].second and cells[ci].second >= edges[ei].second)
@@ -396,6 +398,7 @@ class Adhesion_traits<3>
 					fo_points << rt->dual(cells[ci].first) << " " 
 						<< cells[ci].second << " " 
 						<< oc << std::endl;
+					fo_values << cells[ci].second << std::endl;
 					++ci; ++oc;
 					continue;
 				}
@@ -409,6 +412,7 @@ class Adhesion_traits<3>
 					fm[c] = oc;
 
 					fo_bmatrix << "2 " << c << std::endl;
+					fo_values << facets[fi].second << std::endl;
 					++fi; ++oc;
 					continue;
 				}
@@ -423,10 +427,11 @@ class Adhesion_traits<3>
 				fo_bmatrix << C.size();
 				for (size_t i : C) fo_bmatrix << " " << i;
 				fo_bmatrix << std::endl;
+				fo_values << edges[ei].second << std::endl;
 				++ei; ++oc;
 			}
 
-			fo_bmatrix.close(); fo_points.close();
+			fo_bmatrix.close(); fo_points.close(); fo_values.close();
 		}
 
 		static void _walls_to_ply_file(
@@ -581,9 +586,10 @@ class Adhesion: public Adhesion_traits<R>
 		}
 
 		void write_persistence(
-			std::string const &fn_bmatrix, std::string const &fn_points)
+			std::string const &fn_bmatrix, std::string const &fn_points, 
+			std::string const &fn_values)
 		{
-			Adhesion_traits<R>::_write_persistence(box, rt, fn_bmatrix, fn_points);
+			Adhesion_traits<R>::_write_persistence(box, rt, fn_bmatrix, fn_points, fn_values);
 		}
 };
 
