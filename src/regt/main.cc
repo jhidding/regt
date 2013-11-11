@@ -26,6 +26,15 @@ void write_adhesion_txt(std::ostream &out, ptr<Adhesion<R>> adh)
 }
 
 template <unsigned R>
+void write_adhesion_clusters(std::ostream &out, ptr<Adhesion<R>> adh)
+{
+	adh->for_each_cluster([&] (typename Adhesion<R>::Point const &p, double r)
+	{
+		out << p << " " << r << std::endl;
+	});
+}
+
+template <unsigned R>
 ptr<Adhesion<R>> make_adhesion(Header const &H, Array<double> phi)
 {
 	auto box = make_ptr<BoxConfig<R>>(H.get<unsigned>("mbits"), H.get<float>("size"));
@@ -69,11 +78,12 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 
 	switch (R)
 	{
-		case 2: write_adhesion_txt<R>(fo, adh); break;
-		case 3: if (H.get<bool>("persistence"))
+		case 2: write_adhesion_clusters<R>(fo, adh); break;
+		case 3: write_adhesion_clusters<R>(fo, adh);
+			adh->walls_to_ply_file(fn_ply);
+			if (H.get<bool>("persistence"))
 				adh->write_persistence(fn_bmatrix, fn_points, fn_values);
-			else
-				adh->walls_to_ply_file(fn_ply);
+
 			break;
 	}
 }

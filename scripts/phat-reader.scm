@@ -14,7 +14,7 @@
      (buffer-mode block) #f))
 
 (define compute-persistence
-  (lambda (points bmatrix phat masses)
+  (lambda (bmatrix phat masses)
     (define cell-dim 
       (lambda (idx) 
         (cond
@@ -27,7 +27,7 @@
         (map (lambda (i)
                (if (= i idx) 
                  (cons item (list-ref lst i))
-                 (list-ref lst i))) lst)))
+                 (list-ref lst i))) (range (length lst)))))
 
     (define partition-3
       (lambda (pred lst)
@@ -38,35 +38,36 @@
             (loop (add-to result (pred (car items)) (car items))
                   (cdr items))))))
 
+    (define difference
+      (lambda (= < A B)
+        (let loop ((result '())
+                   (a A) (b B))
+          (cond
+	    ((null? a) (reverse result))
+	    ((= (car a) (car b)) (loop result (cdr a) (cdr b)))
+	    ((< (car a) (car b)) (loop (cons (car a) result) (cdr a) b))
+	    (else                (loop result a (cdr b)))))))
+
     (let* ((pairs    (partition-3 (comp cell-dim car) phat))
-           (persp    (map ($ map ($ vector-ref masses)) pairs))
+           (pers-p   (map ($ map ($ map ($ vector-ref masses))) pairs))
            (paired   (apply append phat))
-           (unpaired (lset-difference = (range (length bmatrix)) paired))
+           (unpaired (difference = < (range (vector-length bmatrix)) (list-sort < paired)))
            (singles  (partition-3 cell-dim unpaired))
-    (let loop ((pairs phat)
-               (diagram '(()()())))
+	   (pers-s   (map ($ map (juxt ($ vector-ref masses) (constant 0))) singles)))
 
-      (cond
-        ; no pairs left
-        ((null? pairs) (<- diagram)
-        (else
-         (loop (cdr pairs)
-               (add-to diagram (cell-dim (caar pairs)) (map ($ vector-ref masses) (car pairs))))))))
-
-        ; cell is not part of pair -> death at infinity
-        ((not (= (caar pairs) cell-idx))
-         (loop (+ 1 cell-idx) (cdr pairs)
-               (add-to diagram (cell-dim cell-idx) (list (vector-ref masses cell-idx) 0))))
-
-        ; cell is part of pair
-        (else
-         (loop ((
+      (map append pers-p pers-s))))
 
 (let* ((read-txt-file (comp car read-tables open-file filename))
        (points  (read-txt-file "points"))
-       (masses  (read-txt-file "values"))
+       (masses  (apply append (read-txt-file "values")))
        (bmatrix (read-txt-file "bmatrix"))
-       (phat    (read-txt-file "phat")))
+       (phat    (cdr (read-txt-file "phat")))
 
-  (for-each (lambda (l) (display l) (newline)) phat))
+       (pers    (compute-persistence 
+                  (list->vector bmatrix) phat (list->vector masses))))
+
+  (for-each (lambda (x)
+    (for-each (comp ($ format #t "~a ~a\n") <-) x)
+    (newline) (newline)) pers))
+
 

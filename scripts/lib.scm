@@ -13,7 +13,7 @@
     
     ; functional tools
     comp juxt first second third flip reverse-args
-    partial partial* id <- $ args thunk on
+    partial partial* id <- $ args thunk on constant
 
     ; mapping, folding, unfolding
     reduce					; reducing
@@ -25,7 +25,7 @@
     range lin-space indices sqr
 
     ; easy printing
-    print
+    print echo
 
     ; streams
     lazy head tail list->lazy lazy->list lazy-map
@@ -143,6 +143,8 @@
   (define id (lambda (x) x))
 
   (define thunk (lambda (x) (lambda () x)))
+
+  (define constant (lambda (x) (lambda ignore x)))
 
   (define comp
     (letrec ((foldl-apply (lambda (F . X)
@@ -300,6 +302,12 @@
   (define print
     (lambda X
       (for-each display X)))
+
+  (define echo
+    (lambda X
+      (for-each (lambda (x) (display x) (display "; ")) X)
+      (newline)
+      (<- X)))
   ; }}}1
 
   ; streams {{{1
