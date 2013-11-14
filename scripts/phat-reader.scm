@@ -4,8 +4,8 @@
 	(ice-9 format))
 
 (define filename 
-  ($ format #f "~a.~5,'0d.~a.txt"
-     (cadr (command-line))
+  ($ format #f "~a.~a.~5,'0d.conan"
+     (cadr (command-line)) --
      (exact (* 10000 (string->number (caddr (command-line)))))))
 
 (define open-file
@@ -58,13 +58,13 @@
       (map append pers-p pers-s))))
 
 (let* ((read-txt-file (comp car read-tables open-file filename))
-       (points  (read-txt-file "points"))
-       (masses  (apply append (read-txt-file "values")))
+       ;(points  (read-txt-file "points"))
+       (alphas  (apply append (map car (read-txt-file "alpha"))))
        (bmatrix (read-txt-file "bmatrix"))
        (phat    (cdr (read-txt-file "phat")))
 
        (pers    (compute-persistence 
-                  (list->vector bmatrix) phat (list->vector masses))))
+                  (list->vector bmatrix) phat (list->vector alphas))))
 
   (for-each (lambda (x)
     (for-each (comp ($ format #t "~a ~a\n") <-) x)
