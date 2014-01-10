@@ -11,6 +11,7 @@
 #include "access.hh"
 #include "date.hh"
 #include "cvector.hh"
+#include "box.hh"
 
 namespace System
 {

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "mvector.hh"
 #include <vector>
 #include <utility>
 #include <iterator>
@@ -105,10 +106,10 @@ namespace System
 			value_type operator[](size_t idx) const
 			{
 				value_type A;
-				for (unsigned i = 0; i < m_size; ++i)
+				for (unsigned i = 0; i < R; ++i)
 				{
-					A[i] = idx % step[i];
-					idx -= A[i];
+					A[i] = idx % shape[i];
+					idx = (idx - A[i]) / shape[i];
 				}
 				return A;
 			}

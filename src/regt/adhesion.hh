@@ -5,12 +5,12 @@
 #include <CGAL/Regular_triangulation_euclidean_traits_2.h>
 #include <CGAL/Regular_triangulation_2.h>
 
-//#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Regular_triangulation_3.h>
 #include <CGAL/Regular_triangulation_euclidean_traits_3.h>
 
 #include "../base/system.hh"
-#include "../base/boxconfig.hh"
+#include "../base/box.hh"
 #include "../ply/ply.hh"
 #include "../misc/interpol.hh"
 #include <memory>
@@ -20,7 +20,7 @@ namespace Conan {
 using System::mVector;
 using System::Array;
 using System::ptr;
-using System::BoxConfig;
+using System::Box;
 using Misc::PLY;
 
 template <unsigned R>
@@ -48,7 +48,7 @@ class Adhesion_traits<2>
 		static Point make_Point(F f) { return Point(f(0), f(1)); }
 
 		static int face_cnt(
-				System::ptr<System::BoxConfig<2>> box,
+				System::ptr<System::Box<2>> box,
 				std::shared_ptr<RT> rt,
 				typename RT::Face_handle f)
 		{
@@ -63,7 +63,7 @@ class Adhesion_traits<2>
 		}
 
 		static void _for_each_big_dual_segment(
-				System::ptr<System::BoxConfig<2>> box,
+				System::ptr<System::Box<2>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Segment const &, double)> const &f)
 		{
@@ -82,7 +82,7 @@ class Adhesion_traits<2>
 		}
 
 		static void _for_each_big_dual_face(
-				System::ptr<System::BoxConfig<2>> box,
+				System::ptr<System::Box<2>> box,
 				std::shared_ptr<RT> rt, 
 				std::function<void (Array<Point>, double)> const &f)
 		{
@@ -104,7 +104,7 @@ class Adhesion_traits<2>
 		}
 
 		static void _for_each_cluster(
-				System::ptr<System::BoxConfig<2>> box,
+				System::ptr<System::Box<2>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Point const &, double)> const &f)
 		{
@@ -118,8 +118,16 @@ class Adhesion_traits<2>
 			}
 		}
 
+		static void _filam_to_ply_file(
+			ptr<Box<2>> box, ptr<RT> rt, 
+			std::string const &filename)
+		{
+			std::cerr << "the 2d tessellation has no meaningfull 3d representation.\n";
+			throw "error";
+		}
+
 		static void _walls_to_ply_file(
-			ptr<BoxConfig<2>> box, ptr<RT> rt, 
+			ptr<Box<2>> box, ptr<RT> rt, 
 			std::string const &filename)
 		{
 			std::cerr << "the 2d tessellation has no walls.\n";
@@ -127,7 +135,7 @@ class Adhesion_traits<2>
 		}
 
 		static void _write_persistence(
-			ptr<BoxConfig<2>> box, ptr<RT> rt,
+			ptr<Box<2>> box, ptr<RT> rt,
 			std::string const &fn_bmatrix, std::string const &fn_points,
 			std::string const &fn_values)
 		{
@@ -169,7 +177,8 @@ template <>
 class Adhesion_traits<3>
 {
 	public:
-		typedef CGAL::Cartesian<double> 	K;
+		//typedef CGAL::Cartesian<double> 	K;
+		typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 		typedef CGAL::Regular_triangulation_euclidean_traits_3<K> Traits;
 		typedef CGAL::Regular_triangulation_3<Traits> RT;
 
@@ -187,7 +196,7 @@ class Adhesion_traits<3>
 		static Point make_Point(F f) { return Point(f(0), f(1), f(2)); }
 
 		static int face_cnt(
-				System::ptr<System::BoxConfig<3>> box,
+				System::ptr<System::Box<3>> box,
 				std::shared_ptr<RT> rt,
 				RT::Cell_handle const &h)
 		{
@@ -205,7 +214,7 @@ class Adhesion_traits<3>
 		}
 				
 		static void _for_each_big_dual_segment(
-				System::ptr<System::BoxConfig<3>> box,
+				System::ptr<System::Box<3>> box,
 				std::shared_ptr<RT> rt, 
 				std::function<void (Segment const &, double)> const &f)
 		{
@@ -225,7 +234,7 @@ class Adhesion_traits<3>
 		}
 
 		static void _for_each_big_dual_face(
-				System::ptr<System::BoxConfig<3>> box,
+				System::ptr<System::Box<3>> box,
 				std::shared_ptr<RT> rt, 
 				std::function<void (Array<Point>, double)> const &f)
 		{
@@ -264,7 +273,7 @@ class Adhesion_traits<3>
 		}
 
 		static void _for_each_cluster(
-				System::ptr<System::BoxConfig<3>> box,
+				System::ptr<System::Box<3>> box,
 				std::shared_ptr<RT> rt,
 				std::function<void (Point const &, double)> const &f)
 		{
@@ -277,7 +286,7 @@ class Adhesion_traits<3>
 		}
 
 		static void _write_persistence(
-			ptr<BoxConfig<3>> box, ptr<RT> rt,
+			ptr<Box<3>> box, ptr<RT> rt,
 			std::string const &fn_bmatrix, std::string const &fn_points,
 			std::string const &fn_values)
 		{
@@ -434,8 +443,92 @@ class Adhesion_traits<3>
 			fo_bmatrix.close(); fo_points.close(); fo_values.close();
 		}
 
+		static void _filam_to_ply_file(
+			ptr<Box<3>> box, ptr<RT> rt,
+			std::string const &filename)
+		{
+			// map Cell_handles to indices into the array of
+			// vertices found in the Voronoi diagram.
+			std::map<RT::Cell_handle, unsigned> V_map;
+			std::vector<Point> V; std::vector<double> M;
+			auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
+			{
+				if (V_map.count(h) == 0)
+				{
+					unsigned q = V.size();
+					V_map[h] = q;
+					V.push_back(rt->dual(h));
+					M.push_back(rt->tetrahedron(h).volume());
+					return q;
+				}
+				else
+				{
+					return V_map[h];
+				}
+			};
+
+			auto is_cell_ok = [&] (RT::Cell_handle const &h) -> bool
+			{
+				if (rt->is_infinite(h)) return false;
+				for (unsigned k = 0; k < 4; ++k)
+				{
+					Point p = rt->point(h, k);
+					for (unsigned k = 0; k < 3; ++k)
+						if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
+							return false;
+				}
+
+				return true;
+			};
+
+			std::vector<std::pair<Array<unsigned>,double>> W;
+			std::for_each(
+				rt->finite_facets_begin(),
+				rt->finite_facets_end(),
+				[&] (typename RT::Facet const &f)
+			{
+				double l = rt->triangle(f).squared_area();
+				if (l / (box->scale2()*box->scale2()) < 6.0) return;
+
+				Array<unsigned> P(0);
+				auto c1 = f.first, c2 = rt->mirror_facet(f).first;
+				if (not (is_cell_ok(c1) and is_cell_ok(c2))) return;
+				if (face_cnt(box, rt, c1) < 5 and face_cnt(box, rt, c2) < 5) return;
+
+				P->push_back(cell_dual(c1));
+				P->push_back(cell_dual(c2));
+
+				W.push_back(std::pair<Array<unsigned>,double>(P, l));
+			});
+
+			PLY ply;
+			ply.add_comment("Adhesion model, filament component.");
+			
+			ply.add_element("vertex", 
+				PLY::scalar_type<float>("x"), 
+				PLY::scalar_type<float>("y"), 
+				PLY::scalar_type<float>("z"));
+			for (Point const &v : V)
+				ply.put_data(
+					PLY::scalar<float>(v[0]),
+					PLY::scalar<float>(v[1]),
+					PLY::scalar<float>(v[2]));
+
+			ply.add_element("edge",
+				PLY::scalar_type<int>("vertex1"),
+				PLY::scalar_type<int>("vertex2"));
+				//PLY::scalar_type<float>("density"));
+			for (auto f : W)
+				ply.put_data(
+					PLY::scalar<int>(f.first[0]),
+					PLY::scalar<int>(f.first[1]));
+				//	PLY::scalar<float>(f.second));
+
+			ply.write(filename, PLY::BINARY);
+		}
+
 		static void _walls_to_ply_file(
-			ptr<BoxConfig<3>> box, ptr<RT> rt, 
+			ptr<Box<3>> box, ptr<RT> rt, 
 			std::string const &filename)
 		{
 			// map Cell_handles to indices into the array of
@@ -535,17 +628,17 @@ class Adhesion: public Adhesion_traits<R>
 		typedef typename RT::Vertex Vertex;
 		
 	private:
-		System::ptr<System::BoxConfig<R>> box;
+		System::ptr<System::Box<R>> box;
 		System::ptr<RT> rt;
 		std::vector<Weighted_point> pts;
 
 	public:
-		Adhesion(System::ptr<System::BoxConfig<R>> box_): 
+		Adhesion(System::ptr<System::Box<R>> box_): 
 			box(box_), rt(new RT) {}
 
-		static System::ptr<Adhesion> create(System::ptr<System::BoxConfig<R>>, System::Array<double>, double);
+		static System::ptr<Adhesion> create(System::ptr<System::Box<R>>, System::Array<double>, double);
 		static System::ptr<Adhesion<R>> create_from_glass(
-				System::ptr<System::BoxConfig<R>> box, 
+				System::ptr<System::Box<R>> box, 
 				System::Array<System::mVector<double,R>> glass, 
 				System::Array<double> phi, double t);
 		
@@ -580,6 +673,11 @@ class Adhesion: public Adhesion_traits<R>
 			Adhesion_traits<R>::_for_each_cluster(box, rt, f);
 		}
 
+		void filam_to_ply_file(std::string const &filename)
+		{
+			Adhesion_traits<R>::_filam_to_ply_file(box, rt, filename);
+		}
+
 		void walls_to_ply_file(std::string const &filename)
 		{
 			Adhesion_traits<R>::_walls_to_ply_file(box, rt, filename);
@@ -595,17 +693,14 @@ class Adhesion: public Adhesion_traits<R>
 
 template <unsigned R>
 System::ptr<Adhesion<R>> Adhesion<R>::create(
-	System::ptr<System::BoxConfig<R>> box, System::Array<double> phi, double t)
+	System::ptr<System::Box<R>> box, System::Array<double> phi, double t)
 {
-	System::cVector<R> b(box->bits());
-
 	auto point_set = System::map(System::Range<size_t>(box->size()),
 		[&] (size_t x) -> Weighted_point
 	{
+		System::mVector<double,R> p = box->G[x];
 		Point Q = Adhesion<R>::make_Point(
-			[&] (unsigned k) -> double
-		{ return box->scale() * b.i(x, k); });
-
+			[&] (unsigned k) -> double { return p[k]; });
 		return Weighted_point(Q, phi[x] * 2 * t);
 	});
 
@@ -617,12 +712,10 @@ System::ptr<Adhesion<R>> Adhesion<R>::create(
 
 template <unsigned R>
 System::ptr<Adhesion<R>> Adhesion<R>::create_from_glass(
-	System::ptr<System::BoxConfig<R>> box, 
+	System::ptr<System::Box<R>> box, 
 	System::Array<System::mVector<double,R>> glass, 
 	System::Array<double> phi, double t)
 {
-	System::cVector<R> b(box->bits());
-
 	Misc::Interpol::Linear<Array<double>,R> pot(box, phi);
 
 	auto point_set = System::map(glass,

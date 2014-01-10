@@ -15,15 +15,15 @@ namespace Misc
 		using dVector = System::mVector<double, R>;
 		using iVector = System::mVector<int, R>;
 
-		cVector<R>	b;
-		Q			f;
+		System::ptr<System::Box<R>> 	box;
+		Q				f;
 
 		public:
 			//typedef typename Q::value_type FT;
 			typedef mVector<double, R> Point;
 
-			Linear(System::ptr<System::BoxConfig<R>> box, Q f_):
-				b(box->bits()), f(f_)
+			Linear(System::ptr<System::Box<R>> box_, Q f_):
+				box(box_), f(f_)
 			{}
 
 			typename Q::value_type operator()(Point const &x) const
@@ -39,16 +39,16 @@ namespace Misc
 					A[0][k] = 1 - A[1][k];
 				}
 
-				size_t s = b.loc(origin);
+				size_t s = box->idx(origin);
 				typename Q::value_type v(0);
 
-				for (size_t dx : b.sq_i)
+				for (unsigned i = 0; i < (1 << R); ++i)
 				{
 					double z = 1;
 					for (unsigned k = 0; k < R; ++k) 
-						z *= A[b.i(dx,k)][k];
+						z *= A[box->block[i][k]][k];
 
-					v += f[b.add(s,dx)] * z;
+					v += f[box->idx(origin + box->block[i])] * z;
 				}
 
 				return v;

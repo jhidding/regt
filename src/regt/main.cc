@@ -40,7 +40,7 @@ void write_adhesion_clusters(std::ostream &out, ptr<Adhesion<R>> adh, double L)
 template <unsigned R>
 ptr<Adhesion<R>> make_adhesion(Header const &H, Array<double> phi)
 {
-	auto box = make_ptr<BoxConfig<R>>(H.get<unsigned>("mbits"), H.get<float>("size"));
+	auto box = make_ptr<Box<R>>(H.get<unsigned>("N"), H.get<float>("size"));
 	double t = H.get<double>("time");
 
 	if (H.get<bool>("glass"))
@@ -55,19 +55,36 @@ ptr<Adhesion<R>> make_adhesion(Header const &H, Array<double> phi)
 		auto adh = Adhesion<R>::create_from_glass(box, glass, phi, t);
 		std::cerr << "[done]\n";
 		return adh;
-	}
+	} 
 	else
-	{
+	{ 
 		std::cerr << "creating triangulation ... ";
 		auto adh = Adhesion<R>::create(box, phi, t);
 		std::cerr << "[done]\n";
 		return adh;
-	}
+	} 
 }
 
 template <unsigned R>
 void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 {
+	if (H["smooth"] != "0")
+	{
+		std::cerr << "Smoothing ... ";
+		auto box = make_ptr<Box<R>>(H.get<unsigned>("N"), H.get<float>("size"));
+		Fourier::Transform fft(std::vector<int>(R, box->N()));
+		double sigma = H.get<double>("smooth");
+		copy(phi, fft.in);
+		auto S = Fourier::Fourier<R>::scale(sigma / box->scale());
+
+		fft.forward();
+		transform(fft.out, box->K, fft.in, Fourier::Fourier<R>::filter(S));
+		fft.in[0] = 0;
+		fft.backward();
+		transform(fft.out, phi, Fourier::real_part(box->size()));
+		std::cerr << "[done]\n";
+	}
+
 	double t = H.get<double>("time");
 	auto adh = make_adhesion<R>(H, phi);
 
@@ -75,15 +92,20 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 	std::ostringstream ss;
 	ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
 	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply"),
+		fn_filply  = Misc::format(H["id"], ".", ss.str(), ".filam.ply"),
+		fn_cluster = Misc::format(H["id"], ".", ss.str(), ".clust.txt"),
 		fn_bmatrix = Misc::format(H["id"], ".", ss.str(), ".bmatrix.txt"),
 		fn_points  = Misc::format(H["id"], ".", ss.str(), ".points.txt"),
 		fn_values  = Misc::format(H["id"], ".", ss.str(), ".values.txt");
 
+	std::ofstream fo_cluster(fn_cluster);
 	switch (R)
 	{
-		case 2: write_adhesion_clusters<R>(fo, adh, H.get<double>("size")); break;
-		case 3: write_adhesion_clusters<R>(fo, adh, H.get<double>("size"));
-			adh->walls_to_ply_file(fn_ply);
+		case 2: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size")); break;
+		case 3: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size"));
+			write_adhesion_txt<R>(fo, adh);
+			//adh->walls_to_ply_file(fn_ply);
+			//adh->filam_to_ply_file(fn_filply);
 			if (H.get<bool>("persistence"))
 				adh->write_persistence(fn_bmatrix, fn_points, fn_values);
 
@@ -103,6 +125,11 @@ void cmd_regt(int argc, char **argv)
 
 		Option({Option::VALUED | Option::CHECK, "i", "id", date_string(),
 			"identifier for filenames."}),
+
+		Option({Option::VALUED | Option::CHECK, "s", "smooth", "0",
+			"smooth the initial conditions before running adhesion. "
+			"By default, no smoothing is done, otherwise this parameter "
+			"is the value of sigma. "}),
 
 		Option({0, "g", "glass", "false",
 			"use a glass file in stead of a regular grid pattern. "
@@ -135,8 +162,15 @@ void cmd_regt(int argc, char **argv)
 
 	// add current command to history.
 	H << C; I << C;
+	if (H["smooth"] != "0")
+	{
+		std::ostringstream ss;
+		ss << H["id"] << ".s" << H["smooth"];
+		H["id"] = ss.str();
+	}
+
 	double t = H.get<double>("time");
-	std::string fn_output = timed_filename(C["id"], "regt", t);
+	std::string fn_output = timed_filename(H["id"], "regt", t);
 
 	// write headers to file.
 	std::ofstream fo;
