@@ -104,8 +104,8 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 		case 2: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size")); break;
 		case 3: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size"));
 			write_adhesion_txt<R>(fo, adh);
-			//adh->walls_to_ply_file(fn_ply);
-			//adh->filam_to_ply_file(fn_filply);
+			adh->walls_to_ply_file(fn_ply);
+			adh->filam_to_ply_file(fn_filply);
 			if (H.get<bool>("persistence"))
 				adh->write_persistence(fn_bmatrix, fn_points, fn_values);
 

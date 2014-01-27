@@ -474,7 +474,7 @@ class Adhesion_traits<3>
 				{
 					Point p = rt->point(h, k);
 					for (unsigned k = 0; k < 3; ++k)
-						if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
+						if ((p[k] > box->L()) or (p[k] < 0))
 							return false;
 				}
 
@@ -516,13 +516,13 @@ class Adhesion_traits<3>
 
 			ply.add_element("edge",
 				PLY::scalar_type<int>("vertex1"),
-				PLY::scalar_type<int>("vertex2"));
-				//PLY::scalar_type<float>("density"));
+				PLY::scalar_type<int>("vertex2"),
+				PLY::scalar_type<float>("density"));
 			for (auto f : W)
 				ply.put_data(
 					PLY::scalar<int>(f.first[0]),
-					PLY::scalar<int>(f.first[1]));
-				//	PLY::scalar<float>(f.second));
+					PLY::scalar<int>(f.first[1]),
+					PLY::scalar<float>(f.second));
 
 			ply.write(filename, PLY::BINARY);
 		}
@@ -558,7 +558,7 @@ class Adhesion_traits<3>
 				{
 					Point p = rt->point(h, k);
 					for (unsigned k = 0; k < 3; ++k)
-						if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
+						if ((p[k] > box->L()) or (p[k] < 0))
 							return false;
 				}
 
@@ -600,13 +600,13 @@ class Adhesion_traits<3>
 					PLY::scalar<float>(v[2]));
 
 			ply.add_element("face",
-				PLY::list_type<int>("vertex_index"));
-				//PLY::scalar_type<float>("density"));
+				PLY::list_type<int>("vertex_index"),
+				PLY::scalar_type<float>("density"));
 			for (auto f : W)
 				if (f.first.size() > 2)
 				    ply.put_data(
-					PLY::list<int>(f.first));
-				//	PLY::scalar<float>(f.second));
+					PLY::list<int>(f.first),
+					PLY::scalar<float>(f.second));
 
 			ply.write(filename, PLY::BINARY);
 		}

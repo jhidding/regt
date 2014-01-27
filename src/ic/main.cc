@@ -58,7 +58,7 @@ void cmd_ic(int argc, char **argv)
 		exit(0);
 	}
 
-	Header H; H << C;
+	Header H; H << C; H["N"] = Misc::format(1 << H.get<unsigned>("mbits"));
 	History I; I << C;
 	Array<double> D = Conan::generate_random_field(H);
 

@@ -10,7 +10,7 @@
 #include <CGAL/Regular_triangulation_euclidean_traits_3.h>
 #include <CGAL/Regular_triangulation_3.h>
 
-#include <CGAL/Alpha_shape_3.h>
+#include "Alpha_shape_3.h"
 #include <vector>
 #include <utility>
 #include <initializer_list>
