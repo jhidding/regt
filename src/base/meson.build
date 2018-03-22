@@ -1,0 +1,1 @@
+src_base_files = files('./argv.cc','./cvector-test.cc','./date.cc','./fft.cc','./fourier.cc','./header.cc','./history.cc','./inverse_log.cc','./main.cc','./mdrange-test.cc','./mtypeid.cc','./reverse_bits.cc','./splitter.cc','./unittest.cc')

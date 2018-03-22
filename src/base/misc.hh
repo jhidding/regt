@@ -9,6 +9,7 @@
 #include <functional>
 #include <sstream>
 #include <complex>
+#include <random>
 
 namespace System
 {
