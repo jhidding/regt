@@ -1,4 +1,3 @@
-subdir('./ply')
 subdir('./misc')
 subdir('./support')
 subdir('./regt')

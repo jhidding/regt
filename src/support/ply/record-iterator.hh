@@ -53,5 +53,34 @@ namespace PLY
                 return data != other.data;
             }
     };
+
+    class RecordCountIterator: public std::iterator<std::forward_iterator_tag, size_t>
+    {
+        RecordSpec const &spec;
+        char const *data;
+        size_t counter;
+
+        public:
+            RecordCountIterator(RecordSpec const &spec, char const *data):
+                spec(spec), data(data), counter(0)
+            {}
+
+            RecordCountIterator &operator++()
+            {
+                data = skip_record(spec, data);
+                ++counter;
+                return *this;
+            }
+
+            size_t operator*() const
+            {
+                return counter;
+            }
+
+            bool operator!=(RecordCountIterator const &other) const
+            {
+                return data != other.data;
+            }
+    };
 }
 

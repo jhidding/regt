@@ -39,7 +39,7 @@ namespace Misc
 					A[0][k] = 1 - A[1][k];
 				}
 
-				size_t s = box->idx(origin);
+				// size_t s = box->idx(origin);
 				typename Q::value_type v(0);
 
 				for (unsigned i = 0; i < (1 << R); ++i)

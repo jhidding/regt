@@ -63,7 +63,9 @@ namespace PLY
         RecordSpec const &spec, char const *data, T &tgt, std::index_sequence<i,is...>)
     {
         if (spec[i].is_list)
-            return read_list(spec[i], data, std::get<i>(tgt));
+            return read_record(spec,
+                read_list(spec[i], data, std::get<i>(tgt)),
+                tgt, std::index_sequence<is...>());
         else
             return read_record(spec, 
                 read_field(spec[i].type, data, std::get<i>(tgt)), 
@@ -76,6 +78,49 @@ namespace PLY
     {
         return read_record(spec, data, tgt, 
             std::make_index_sequence<std::tuple_size<T>::value>());
+    }
+
+    inline char const *skip_field(TYPE_ID type, char const *data)
+    {
+        switch (type)
+        {
+            case T_CHAR:    return data + 1;
+            case T_UCHAR:   return data + 1;
+            case T_SHORT:   return data + 2;
+            case T_USHORT:  return data + 2;
+            case T_INT:     return data + 4;
+            case T_UINT:    return data + 4;
+            case T_FLOAT:   return data + 4;
+            case T_DOUBLE:  return data + 8;
+        }
+
+        throw Exception("Error skipping record field: unknown data type.");        
+    }
+
+    inline char const *skip_list(Field const &f, char const *data)
+    {
+        size_t size;
+        data = read_field(f.length_type, data, size);
+
+        for (size_t i = 0; i < size; ++i)
+            data = skip_field(f.type, data);
+
+        return data;
+    }
+
+    inline char const *skip_record(
+        RecordSpec const &spec, char const *data)
+    {
+        for (Field const &field : spec)
+        {
+            if (field.is_list)
+            {
+                data = skip_list(field, data);
+            } else {
+                data = skip_field(field.type, data);
+            }
+        }
+        return data;
     }
 }
 

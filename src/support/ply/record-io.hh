@@ -6,11 +6,19 @@
 
 namespace PLY
 {
+    template <typename Data, typename Buf>
+    inline void try_read(Data &data, Buf &buf)
+    {
+        if (!data.read(buf.data(), buf.size()))
+            throw Exception("Error reading PLY: unexpected end of file.");
+    }
+
     template <typename U, typename T, typename Input>
     inline T load_bytes(Input &data)
     {
         U tgt;
-        data.read(reinterpret_cast<char *>(&tgt), sizeof(U));
+        if (!data.read(reinterpret_cast<char *>(&tgt), sizeof(U)))
+            throw Exception("Error reading PLY: unexpected end of file.");                   
         return static_cast<T>(tgt);
     }
 
@@ -43,7 +51,7 @@ namespace PLY
         size_t len = load_field<size_t>(data, f.length_type);
         tgt = write_field(f.length_type, tgt, len);
         std::vector<char> buf(len * Type_map[f.type].size);
-        data.read(buf.data(), buf.size());
+        try_read(data, buf);
         return std::copy(buf.begin(), buf.end(), tgt);
     }
 
@@ -60,7 +68,7 @@ namespace PLY
             else
             {
                 std::vector<char> buf(Type_map[f.type].size);
-                data.read(buf.data(), buf.size());
+                try_read(data, buf);
                 tgt = std::copy(buf.begin(), buf.end(), tgt);
             }
         }
@@ -83,7 +91,7 @@ namespace PLY
         {
             size_t r_size = record_size(spec);
             std::vector<char> buf(r_size * n);
-            data.read(buf.data(), buf.size());
+            try_read(data, buf);
             return std::copy(buf.begin(), buf.end(), tgt);
         }
     }

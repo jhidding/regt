@@ -7,6 +7,7 @@
 #include <vector>
 #include <typeinfo>
 #include <stdexcept>
+#include <algorithm>
 
 #include "base.hh"
 #include "header.hh"
@@ -36,6 +37,8 @@ namespace PLY
 
             /*! constructor, reads data from a file. */
             PLY(std::string const &file_name);
+
+            void save(std::string const &filename) const;
 
             /*! get the format (ascii or binary) of the PLY. */
             Format const &format() const
@@ -73,7 +76,13 @@ namespace PLY
             /*! add a line of comment to the header. */
             PLY &comment(std::string const &msg)
                 { header_.comments.push_back(msg); return *this; }
+
+            bool check() const
+            {
+                return std::all_of(data_.begin(), data_.end(), [] (auto const &x)
+                {
+                    return x.second.sizes_match();
+                });
+            }
     };
 }
-
-extern std::ostream &operator<<(std::ostream &out, PLY::PLY const &ply);

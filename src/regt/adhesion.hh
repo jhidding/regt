@@ -6,10 +6,10 @@
 #include <CGAL/Regular_triangulation_3.h>
 #include <CGAL/Regular_triangulation_2.h>
 
-#include "../base/system.hh"
-#include "../base/box.hh"
-#include "../ply/ply.hh"
-#include "../misc/interpol.hh"
+#include "base/system.hh"
+#include "base/box.hh"
+#include "support/ply/ply.hh"
+#include "misc/interpol.hh"
 #include <memory>
 
 namespace Conan {
@@ -18,7 +18,6 @@ using System::mVector;
 using System::Array;
 using System::ptr;
 using System::Box;
-using Misc::PLY;
 
 template <unsigned R>
 class Adhesion_traits;
@@ -30,7 +29,7 @@ class Adhesion_traits<2>
         typedef CGAL::Cartesian<double>          K;
         typedef CGAL::Regular_triangulation_2<K> RT;
 
-        typedef RT::Point Point;
+        typedef RT::Bare_point Point;
         typedef RT::Weighted_point Weighted_point;
 
         typedef typename RT::Segment Segment;
@@ -177,7 +176,7 @@ class Adhesion_traits<3>
         typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
         typedef CGAL::Regular_triangulation_3<K> RT;
 
-        typedef RT::Point        Point;
+        typedef RT::Bare_point        Point;
         typedef RT::Edge        Edge;
         //typedef RT::Vector        Vector;
         typedef RT::Weighted_point    Weighted_point;
@@ -288,6 +287,7 @@ class Adhesion_traits<3>
             std::map<RT::Cell_handle, unsigned> V_map;
             std::vector<Point> V; std::vector<double> M;
 
+            /*
             auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
             {
                 if (V_map.count(h) == 0)
@@ -303,13 +303,14 @@ class Adhesion_traits<3>
                     return V_map[h];
                 }
             };
+            */
 
             auto is_cell_ok = [&] (RT::Cell_handle const &h) -> bool
             {
                 if (rt->is_infinite(h)) return false;
                 for (unsigned k = 0; k < 4; ++k)
                 {
-                    Point p = rt->point(h, k);
+                    Weighted_point p = rt->point(h, k);
                     for (unsigned k = 0; k < 3; ++k)
                         if ((p[k] > 0.9 * box->L()) or (p[k] < 0.1 * box->L()))
                             return false;
@@ -445,7 +446,9 @@ class Adhesion_traits<3>
             // map Cell_handles to indices into the array of
             // vertices found in the Voronoi diagram.
             std::map<RT::Cell_handle, unsigned> V_map;
-            std::vector<Point> V; std::vector<double> M;
+            std::vector<Point> V;
+            std::vector<double> M;
+
             auto cell_dual = [&] (RT::Cell_handle const &h) -> unsigned
             {
                 if (V_map.count(h) == 0)
@@ -467,7 +470,7 @@ class Adhesion_traits<3>
                 if (rt->is_infinite(h)) return false;
                 for (unsigned k = 0; k < 4; ++k)
                 {
-                    Point p = rt->point(h, k);
+                    Weighted_point p = rt->point(h, k);
                     for (unsigned k = 0; k < 3; ++k)
                         if ((p[k] > box->L()) or (p[k] < 0))
                             return false;
@@ -496,30 +499,24 @@ class Adhesion_traits<3>
                 W.push_back(std::pair<Array<unsigned>,double>(P, l));
             });
 
-            PLY ply;
-            ply.add_comment("Adhesion model, filament component.");
+            PLY::PLY ply;
+            ply.comment("Adhesion model, filament component.");
             
             ply.add_element("vertex", 
-                PLY::scalar_type<float>("x"), 
-                PLY::scalar_type<float>("y"), 
-                PLY::scalar_type<float>("z"));
+                PLY::property<float>("x"), 
+                PLY::property<float>("y"), 
+                PLY::property<float>("z"));
             for (Point const &v : V)
-                ply.put_data(
-                    PLY::scalar<float>(v[0]),
-                    PLY::scalar<float>(v[1]),
-                    PLY::scalar<float>(v[2]));
+                ply.put_data(v[0], v[1], v[2]);
 
             ply.add_element("edge",
-                PLY::scalar_type<int>("vertex1"),
-                PLY::scalar_type<int>("vertex2"),
-                PLY::scalar_type<float>("density"));
+                PLY::property<int>("vertex1"),
+                PLY::property<int>("vertex2"),
+                PLY::property<float>("density"));
             for (auto f : W)
-                ply.put_data(
-                    PLY::scalar<int>(f.first[0]),
-                    PLY::scalar<int>(f.first[1]),
-                    PLY::scalar<float>(f.second));
+                ply.put_data((*f.first)[0], (*f.first)[1], f.second);
 
-            ply.write(filename, PLY::BINARY);
+            ply.save(filename);
         }
 
         static void _walls_to_ply_file(
@@ -551,7 +548,7 @@ class Adhesion_traits<3>
                 if (rt->is_infinite(h)) return false;
                 for (unsigned k = 0; k < 4; ++k)
                 {
-                    Point p = rt->point(h, k);
+                    Weighted_point p = rt->point(h, k);
                     for (unsigned k = 0; k < 3; ++k)
                         if ((p[k] > box->L()) or (p[k] < 0))
                             return false;
@@ -581,29 +578,24 @@ class Adhesion_traits<3>
                 W.push_back(std::pair<Array<unsigned>,double>(P, l));
             });
 
-            PLY ply;
-            ply.add_comment("Adhesion model, wall component.");
+            PLY::PLY ply;
+            ply.comment("Adhesion model, wall component.");
             
             ply.add_element("vertex", 
-                PLY::scalar_type<float>("x"), 
-                PLY::scalar_type<float>("y"), 
-                PLY::scalar_type<float>("z"));
+                PLY::property<float>("x"), 
+                PLY::property<float>("y"), 
+                PLY::property<float>("z"));
             for (Point const &v : V)
-                ply.put_data(
-                    PLY::scalar<float>(v[0]),
-                    PLY::scalar<float>(v[1]),
-                    PLY::scalar<float>(v[2]));
+                ply.put_data(v[0], v[1], v[2]);
 
             ply.add_element("face",
-                PLY::list_type<int>("vertex_index"),
-                PLY::scalar_type<float>("density"));
+                PLY::list_property<int, uint8_t>("vertex_index"),
+                PLY::property<float>("density"));
             for (auto f : W)
                 if (f.first.size() > 2)
-                    ply.put_data(
-                    PLY::list<int>(f.first),
-                    PLY::scalar<float>(f.second));
+                    ply.put_data(*f.first, f.second);
 
-            ply.write(filename, PLY::BINARY);
+            ply.save(filename);
         }
 };
 

@@ -76,6 +76,28 @@ namespace PLY
                 return size_;
             }
 
+            size_t byte_size() const
+            {
+                return data_.size();
+            }
+
+            bool sizes_match() const
+            {
+                if (not has_list(spec))
+                {
+                    return byte_size() == size() * record_size(spec);
+                } else {
+                    return size() == count_records();
+                }
+            }
+
+            size_t count_records() const
+            {
+                auto a = RecordCountIterator(spec, data());
+                auto b = RecordCountIterator(spec, data() + byte_size());
+                return std::count_if(a, b, [] (auto x) { return true; });
+            }
+
             char const *data() const
             {
                 return data_.data();

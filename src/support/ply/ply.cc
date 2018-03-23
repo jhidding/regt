@@ -18,17 +18,20 @@ PLY::PLY::PLY(std::string const &file_name)
     }
 }
 
-std::ostream &operator<<(std::ostream &out, PLY::PLY const &ply)
+void PLY::PLY::save(std::string const &filename) const
 {
-    out << ply.header();
-    for (Element const &element : ply.header())
+    std::ofstream out(filename);
+    
+    out << header();
+    for (Element const &element : header())
     {
-        if (ply.format() == BINARY)
+        if (format() == BINARY)
         {
-            out.write(ply[element.name].data(), ply[element.name].size());
+            out.write((*this)[element.name].data(), (*this)[element.name].byte_size());
         } else {
-            out << ply[element.name];
+            out << (*this)[element.name];
         }
     }
-    return out;
+
+    out.close();
 }

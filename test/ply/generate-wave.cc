@@ -1,5 +1,4 @@
-#include <gtest/gtest.h>
-#include "support/ply/ply.hh"
+#include "generate-wave.hh"
 
 #include "base/unittest.hh"
 #include "base/mvector.hh"
@@ -8,11 +7,9 @@
 
 using namespace System;
 
-TEST(Ply, WritingASCII)
-{
-	PLY::PLY ply(PLY::ASCII);
-	int N = 50;
 
+void generate_wave(PLY::PLY &ply, int N)
+{
 	auto grid = map(MdRange<2>(mVector<int,2>(N)),
 		[N] (mVector<int,2> const &X) { 
 		return mVector<double,2>(X) * (2./N) - mVector<double,2>(1.0);
@@ -52,22 +49,22 @@ TEST(Ply, WritingASCII)
 	}
 
 	ply.add_element("face",
-		PLY::list_property<unsigned, unsigned>("vertex_index"));
+		PLY::list_property<unsigned, unsigned char>("vertex_index"));
 	mVector<int,2> dx({0, 1}), dy({1, 0});
 	for (auto p : MdRange<2>(mVector<int,2>(N-1)))
 	{
-		std::vector<unsigned> v1, v2;
-		v1.push_back(p[0] +     N * p[1]);
-		v1.push_back(p[0] + 1 + N * p[1]);
-		v1.push_back(p[0] + 1 + N * p[1] + N);
+		std::vector<int>
+            v1 = {
+                p[0] +     N * p[1],
+                p[0] + 1 + N * p[1],
+                p[0] + 1 + N * p[1] + N
+            },
+            v2 = {
+                p[0] + 1 + N * p[1] + N,
+                p[0] +     N * p[1] + N,
+                p[0] +     N * p[1]             
+            };
 		ply.put_data(v1);
-		v2.push_back(p[0] + 1 + N * p[1] + N);
-		v2.push_back(p[0] +     N * p[1] + N);
-		v2.push_back(p[0] +     N * p[1]);
 		ply.put_data(v2);
 	}
-
-    std::ofstream f("ply_test.ply");
-    f << ply;
-    f.close();
 }

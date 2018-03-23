@@ -22,12 +22,13 @@ h5_libs = run_command(['scripts/h5-config.sh', '--libs']).stdout().strip().split
 
 local_include = include_directories('./include', './src')
 
-# executable('regt',
-#        src_regt_files, src_ply_files, src_base_files, src_ic_files,
-#        src_glass_files,
-#        dependencies : [fftw_dep, cgal_dep, gsl_dep],
-#        cpp_args : ['-fopenmp', '-frounding-math'],
-#        link_args : ['-fopenmp'])
+executable('regt',
+        src_regt_files, src_support_files, src_base_files, src_ic_files,
+        src_glass_files,
+        include_directories : local_include,
+        dependencies : [fftw_dep, cgal_dep, gsl_dep],
+        cpp_args : ['-fopenmp', '-frounding-math'],
+        link_args : ['-fopenmp'])
 
 # === [ TESTS ] ===
 
@@ -36,5 +37,5 @@ subdir('test')
 gtest_dep = dependency('gtest', main : true, required : false)
 e = executable('test-test', test_test_files, test_ply_files, src_support_files,
         dependencies : gtest_dep,
-        include_directories: local_include)
+        include_directories : local_include)
 test('gtest test', e)
