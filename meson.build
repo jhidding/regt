@@ -7,6 +7,8 @@ project(
     default_options : ['cpp_std=c++17']
 )
 
+# add_global_arguments('-O3', language : 'cpp')
+
 subdir('src')
 
 fftw_dep = dependency('fftw3')

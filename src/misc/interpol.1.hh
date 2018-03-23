@@ -39,17 +39,14 @@ namespace Misc
 					A[0][k] = 1 - A[1][k];
 				}
 
-				// size_t s = box->idx(origin);
+				size_t s = box->idx(origin);
 				typename Q::value_type v(0);
 
 				for (unsigned i = 0; i < (1 << R); ++i)
 				{
 					double z = 1;
-					for (unsigned k = 0; k < R; ++k)
-					{
-						std::cout << box->block[i][k] << std::endl;
+					for (unsigned k = 0; k < R; ++k) 
 						z *= A[box->block[i][k]][k];
-					}
 
 					v += f[box->idx(origin + box->block[i])] * z;
 				}

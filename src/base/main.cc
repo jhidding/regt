@@ -82,7 +82,7 @@ namespace Test
 void usage(std::string const &cmd)
 {
 	std::cout << "DMT3D - catastrophes at your doorstep.\n"
-		"Copyright Johan Hidding, June 2013 - licence: GPL3.\n\n"
+		"Copyright Johan Hidding, 2013-2018 - licence: Apache v2.\n\n"
 		"usage: " << cmd << " [command] [args]\n"
 		"where [command] is one of: " << System::join(Global<Command>::items(), ", ") <<
 		"\nto get help on a command: " << cmd << " [command] --help\n";
