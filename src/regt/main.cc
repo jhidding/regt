@@ -1,6 +1,8 @@
 #include "../base/system.hh"
 #include "../base/format.hh"
 #include "adhesion.hh"
+#include "velocity.hh"
+#include "ply_writer.hh"
 
 #include <iostream>
 #include <fstream>
@@ -10,63 +12,61 @@
 using namespace System;
 using namespace Conan;
 
-std::ostream &operator<<(std::ostream &out, typename Adhesion<2>::Point const &p)
-{ return out << p[0] << " " << p[1]; }
-std::ostream &operator<<(std::ostream &out, typename Adhesion<3>::Point const &p)
-{ return out << p[0] << " " << p[1] << " " << p[2]; }
-
 template <unsigned R>
-void write_adhesion_txt(std::ostream &out, ptr<Adhesion<R>> adh)
+ptr<Adhesion<R>> make_adhesion(Header const &H);
+
+template <>
+ptr<Adhesion<2>> make_adhesion<2>(Header const &H)
 {
-	adh->for_each_big_dual_segment([&] (typename Adhesion<R>::Segment const &s, double v)
+	auto box = make_ptr<Box<2>>(H.get<unsigned>("N"), H.get<float>("size"));
+	return make_ptr<Velocity<Adhesion<2>>>(box);
+}
+
+template <>
+ptr<Adhesion<3>> make_adhesion<3>(Header const &H)
+{
+	auto box = make_ptr<Box<3>>(H.get<unsigned>("N"), H.get<float>("size"));
+	if (H.get<bool>("ply"))
 	{
-		typename Adhesion<R>::Point a = s.start(), b = s.end();
-		out << a << " " << v << "\n" << b << " " << v << "\n\n\n";
-	});
+		return make_ptr<PLY_writer<Velocity<Adhesion<3>>>>(box);
+	}
+	else
+	{
+		return make_ptr<Velocity<Adhesion<3>>>(box);
+	}
 }
 
 template <unsigned R>
-void write_adhesion_clusters(std::ostream &out, ptr<Adhesion<R>> adh, double L)
+ptr<Adhesion<R>> make_adhesion2(Header const &H, Array<double> phi)
 {
-	adh->for_each_cluster([&] (typename Adhesion<R>::Point const &p, double r)
-	{
-		for (unsigned i = 0; i < R; ++i)
-			if (p[i] > L or p[i] < 0) return;
-
-		out << p << " " << r << std::endl;
-	});
-}
-
-template <unsigned R>
-ptr<Adhesion<R>> make_adhesion(Header const &H, Array<double> phi)
-{
-	auto box = make_ptr<Box<R>>(H.get<unsigned>("N"), H.get<float>("size"));
+	ptr<Adhesion<R>> adh = make_adhesion<R>(H);
 	double t = H.get<double>("time");
 
 	if (H.get<bool>("glass"))
 	{
-		std::cerr << "reading glass ... \n";
-		std::ifstream fi(timed_filename(H["id"], "glass", -1));
+		std::string fn_glass = timed_filename(H["id"], "glass", -1);
+		std::cerr << "reading glass ... " << fn_glass << "\n";
+		std::ifstream fi(fn_glass);
 		System::Header 	gH(fi);
 		System::History gI(fi);
 
 		Array<mVector<double,R>> glass(fi);
 		std::cerr << "creating triangulation ... ";
-		auto adh = Adhesion<R>::create_from_glass(box, glass, phi, t);
+		adh->from_potential_with_glass(glass, phi, t);
 		std::cerr << "[done]\n";
 		return adh;
-	} 
+	}
 	else
-	{ 
+	{
 		std::cerr << "creating triangulation ... ";
-		auto adh = Adhesion<R>::create(box, phi, t);
+		adh->from_potential(phi, t);
 		std::cerr << "[done]\n";
 		return adh;
-	} 
+	}
 }
 
 template <unsigned R>
-void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
+void regular_triangulation2(std::ostream &fo, Header const &H, Array<double> phi)
 {
 	if (H["smooth"] != "0")
 	{
@@ -85,35 +85,13 @@ void regular_triangulation(std::ostream &fo, Header const &H, Array<double> phi)
 		std::cerr << "[done]\n";
 	}
 
-	double t = H.get<double>("time");
-	auto adh = make_adhesion<R>(H, phi);
+	auto adh = make_adhesion2<R>(H, phi);
 
 	std::cerr << "writing needed info ... ";
-	std::ostringstream ss;
-	ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
-	std::string fn_ply = Misc::format(H["id"], ".", ss.str(), ".walls.ply"),
-		fn_filply  = Misc::format(H["id"], ".", ss.str(), ".filam.ply"),
-		fn_cluster = Misc::format(H["id"], ".", ss.str(), ".clust.txt"),
-		fn_bmatrix = Misc::format(H["id"], ".", ss.str(), ".bmatrix.txt"),
-		fn_points  = Misc::format(H["id"], ".", ss.str(), ".points.txt"),
-		fn_values  = Misc::format(H["id"], ".", ss.str(), ".values.txt");
-
-	std::ofstream fo_cluster(fn_cluster);
-	switch (R)
-	{
-		case 2: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size")); break;
-		case 3: write_adhesion_clusters<R>(fo_cluster, adh, H.get<double>("size"));
-			write_adhesion_txt<R>(fo, adh);
-			adh->walls_to_ply_file(fn_ply);
-			adh->filam_to_ply_file(fn_filply);
-			if (H.get<bool>("persistence"))
-				adh->write_persistence(fn_bmatrix, fn_points, fn_values);
-
-			break;
-	}
+	adh->save_all(H);
 }
 
-void cmd_regt(int argc, char **argv)
+void cmd_regt2(int argc, char **argv)
 {
 	std::ostringstream ss;
 	ss << time(NULL);
@@ -138,7 +116,21 @@ void cmd_regt(int argc, char **argv)
 		Option({0, "p", "persistence", "false",
 			"write the result in the form of persistence data, readable "
 			"by the [phat] package."}),
-		
+
+		Option({0, "txt", "txt", "false",
+			"save data as text; default is binary."}),
+
+		Option({0, "ply", "ply", "false",
+			"write data to PLY, only for 3D."}),
+
+		Option({Option::VALUED | Option::CHECK, "", "minli-wall", "0",
+			"minimal Lagrangian interval to store, a higher value "
+			"reduces size of files written. Number is length."}),
+
+		Option({Option::VALUED | Option::CHECK, "", "minli-fila", "0",
+			"minimal Lagrangian interval to store, a higher value "
+			"reduces size of files written. Number is area."}),
+
 		Option({Option::VALUED | Option::CHECK, "t", "time", "1.0",
 			"growing mode parameter."}));
 
@@ -166,7 +158,11 @@ void cmd_regt(int argc, char **argv)
 	{
 		std::ostringstream ss;
 		ss << H["id"] << ".s" << H["smooth"];
-		H["id"] = ss.str();
+		H["new-id"] = ss.str();
+	}
+	else
+	{
+		H["new-id"] = H["id"];
 	}
 
 	double t = H.get<double>("time");
@@ -184,15 +180,15 @@ void cmd_regt(int argc, char **argv)
 	// run 2 or 3 dimensional version.
 	switch (H.get<unsigned>("dim"))
 	{
-		case 2: regular_triangulation<2>(fo, H, potential);
+		case 2: regular_triangulation2<2>(fo, H, potential);
 			break;
 
-		case 3: regular_triangulation<3>(fo, H, potential);
+		case 3: regular_triangulation2<3>(fo, H, potential);
 			break;
 	}
 
 	fo.close();
 }
 
-Global<Command> _REGT("regt", cmd_regt);
+Global<Command> _REGT2("adhesion", cmd_regt2);
 

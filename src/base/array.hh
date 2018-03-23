@@ -7,6 +7,7 @@
 #include "misc.hh"
 #include "mtypeid.hh"
 #include "header.hh"
+#include "format.hh"
 #include <iostream>
 #include <vector>
 #include <iterator>
@@ -56,7 +57,7 @@ namespace System
 
 			using Ref<std::vector<T>>::get;
 
-			Array(size_t n, T value = T()):
+			Array(size_t n = 0, T value = T()):
 				Ref<std::vector<T>>(new std::vector<T>(n, value))
 			{}
 
@@ -78,6 +79,7 @@ namespace System
 		Header S;
 		S["name"] = name;
 		S["dtype"] = TypeRegister::name<T>();
+		S["dtype_size"] = Misc::format(sizeof(T));
 		S.to_file(fo); data.to_file(fo);
 	}
 

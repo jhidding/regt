@@ -1,5 +1,5 @@
 #pragma once
-#include "adhesion2.hh"
+#include "adhesion.hh"
 
 namespace Conan
 {
@@ -15,7 +15,7 @@ namespace Conan
 		return dVector<4>({ - a[1] * (b[2]*c[3] - b[3]*c[2])
 				    - a[2] * (b[3]*c[1] - b[1]*c[3])
 				    - a[3] * (b[1]*c[2] - b[2]*c[1]),
-				    
+
 				      a[2] * (b[3]*c[0] - b[0]*c[3])
 				    + a[3] * (b[0]*c[2] - b[2]*c[0])
 				    + a[0] * (b[2]*c[3] - b[3]*c[2]),
@@ -136,6 +136,8 @@ namespace Conan
 				System::TypeRegister::set_name<VelocityInfo<R>>(type_name);
 			}
 
+            virtual ~Velocity() {}
+
 			dVector<R> velocity(Node c, double t = 1.0)
 			{
 				Point	points[R+1];
@@ -155,7 +157,7 @@ namespace Conan
 			{
 				Base::for_each_node([&] (Node i)
 				{
-					fo << rt->dual(i) << " " << velocity(i, t) << " " 
+					fo << rt->dual(i) << " " << velocity(i, t) << " "
 					   << Base::face_cnt(i) << " " << Base::measure(i) << std::endl;
 				});
 			}
@@ -165,7 +167,7 @@ namespace Conan
 				Array<VelocityInfo<R>> data;
 				Base::for_each_node([&] (Node i)
 				{
-					data->push_back({ 
+					data->push_back({
 						Base::Point2dVector(rt->dual(i)),
 						velocity(i, t),
 						Base::measure(i), Base::face_cnt(i)});
@@ -179,7 +181,7 @@ namespace Conan
 				double t = H.get<double>("time");
 				std::ostringstream ss;
 				ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
-	
+
 				std::string fn = Misc::format(H["new-id"], ".nodes.", ss.str(), ".conan");
 				std::ofstream fo(fn);
 

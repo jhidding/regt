@@ -1,2 +1,2 @@
-subdir('./ply')
 subdir('./test')
+subdir('./ply')

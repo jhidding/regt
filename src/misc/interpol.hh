@@ -1,5 +1,5 @@
 #pragma once
-#include "../base/system.hh"
+#include "base/system.hh"
 #include <queue>
 
 namespace Misc
@@ -46,10 +46,7 @@ namespace Misc
 				{
 					double z = 1;
 					for (unsigned k = 0; k < R; ++k)
-					{
-						std::cout << box->block[i][k] << std::endl;
 						z *= A[box->block[i][k]][k];
-					}
 
 					v += f[box->idx(origin + box->block[i])] * z;
 				}
@@ -121,7 +118,7 @@ namespace Misc
 		enum { R = 2 };
 		cVector<2> 	loop;
 		cVector<2> 	b4;
-		cVector<2> 	box;	
+		cVector<2> 	box;
 		F			fn;
 
 		typedef mVector<double, R> 	fVector;
@@ -146,7 +143,7 @@ namespace Misc
 		cVector<R> 	b4;
 		cVector<R> 	box;
 		F		fn;
-		
+
 		typedef typename F::value_type value_type;
 		typedef mVector<double, R> 	fVector;
 		typedef mVector<int, R> 	iVector;

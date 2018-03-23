@@ -1,7 +1,7 @@
 #pragma once
-#include "../base/system.hh"
-#include "../ply/ply.hh"
-#include "../misc/interpol.hh"
+#include "base/system.hh"
+#include "support/ply/ply.hh"
+#include "misc/interpol.hh"
 
 namespace Conan
 {
@@ -18,6 +18,5 @@ namespace Conan
 	using System::Array;
 	using System::ptr;
 	using System::Box;
-	using Misc::PLY;
 }
 

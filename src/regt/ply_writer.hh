@@ -1,5 +1,5 @@
 #pragma once
-#include "adhesion2.hh"
+#include "adhesion.hh"
 
 namespace Conan
 {
@@ -7,6 +7,7 @@ namespace Conan
 	class VoronoiMap
 	{
 		using Point = typename Adh::Point;
+        using Weighted_point = typename Adh::Weighted_point;
 		using RT    = typename Adh::RT;
 		using Node  = typename Adh::Node;
 
@@ -14,8 +15,8 @@ namespace Conan
 		std::vector<Point>  _vertices;
 		std::vector<double> _mass;
 
-		ptr<RT>   rt;
 		BoxPtr<3> box;
+		ptr<RT>   rt;
 
 		public:
 			VoronoiMap(BoxPtr<3> box_, ptr<RT> rt_):
@@ -44,7 +45,7 @@ namespace Conan
 				if (rt->is_infinite(h)) return false;
 				for (unsigned k = 0; k < 4; ++k)
 				{
-					Point p = rt->point(h, k);
+					Weighted_point p = rt->point(h, k);
 					for (unsigned k = 0; k < 3; ++k)
 						if ((p[k] > box->L()) or (p[k] < 0))
 							return false;
@@ -76,12 +77,14 @@ namespace Conan
 				if (R != 3) throw "PLY is only available in 3D";
 			}
 
+            virtual ~PLY_writer() {}
+
 			virtual void save_all(Header const &H)
 			{
 				double t = H.get<double>("time");
 				std::ostringstream ss;
 				ss << std::setfill('0') << std::setw(5) << static_cast<int>(round(t * 10000));
-	
+
 				std::string fn_walls = Misc::format(H["new-id"], ".walls.", ss.str(), ".ply"),
 					    fn_filam = Misc::format(H["new-id"], ".filam.", ss.str(), ".ply");
 
@@ -116,30 +119,24 @@ namespace Conan
 					W.push_back(std::pair<Array<unsigned>,double>(P, l));
 				});
 
-				PLY ply;
-				ply.add_comment("Adhesion model, filament component.");
-				
-				ply.add_element("vertex", 
-					PLY::scalar_type<float>("x"), 
-					PLY::scalar_type<float>("y"), 
-					PLY::scalar_type<float>("z"));
+				PLY::PLY ply;
+				ply.comment("Adhesion model, filament component.");
+
+				ply.add_element("vertex",
+					PLY::property<float>("x"),
+					PLY::property<float>("y"),
+					PLY::property<float>("z"));
 				for (Point const &v : cell_dual.vertices())
-					ply.put_data(
-						PLY::scalar<float>(v[0]),
-						PLY::scalar<float>(v[1]),
-						PLY::scalar<float>(v[2]));
+					ply.put_data(v[0], v[1], v[2]);
 
 				ply.add_element("edge",
-					PLY::scalar_type<int>("vertex1"),
-					PLY::scalar_type<int>("vertex2"),
-					PLY::scalar_type<float>("density"));
+					PLY::property<int>("vertex1"),
+					PLY::property<int>("vertex2"),
+					PLY::property<float>("density"));
 				for (auto f : W)
-					ply.put_data(
-						PLY::scalar<int>(f.first[0]),
-						PLY::scalar<int>(f.first[1]),
-						PLY::scalar<float>(f.second));
+					ply.put_data((*f.first)[0], (*f.first)[1], f.second);
 
-				ply.write(filename, PLY::BINARY);
+				ply.save(filename);
 			}
 
 			void write_walls_to_ply(std::string const &filename, double minli) const
@@ -168,29 +165,24 @@ namespace Conan
 					W.push_back(std::pair<Array<unsigned>,double>(P, l));
 				});
 
-				PLY ply;
-				ply.add_comment("Adhesion model, wall component.");
-				
-				ply.add_element("vertex", 
-					PLY::scalar_type<float>("x"), 
-					PLY::scalar_type<float>("y"), 
-					PLY::scalar_type<float>("z"));
+				PLY::PLY ply;
+				ply.comment("Adhesion model, wall component.");
+
+				ply.add_element("vertex",
+					PLY::property<float>("x"),
+					PLY::property<float>("y"),
+					PLY::property<float>("z"));
 				for (Point const &v : cell_dual.vertices())
-					ply.put_data(
-						PLY::scalar<float>(v[0]),
-						PLY::scalar<float>(v[1]),
-						PLY::scalar<float>(v[2]));
+					ply.put_data(v[0], v[1], v[2]);
 
 				ply.add_element("face",
-					PLY::list_type<int>("vertex_index"),
-					PLY::scalar_type<float>("density"));
+					PLY::list_property<int, uint8_t>("vertex_index"),
+					PLY::property<float>("density"));
 				for (auto f : W)
 					if (f.first.size() > 2)
-					    ply.put_data(
-						PLY::list<int>(f.first),
-						PLY::scalar<float>(f.second));
+					    ply.put_data(*f.first, f.second);
 
-				ply.write(filename, PLY::BINARY);
+				ply.save(filename);
 			}
 	};
 }
