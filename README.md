@@ -1,87 +1,75 @@
-
-# Table of Contents
-
-1.  [Regular triangulations for Cosmology](#orga056299)
-    1.  [Features](#org30fcbbe)
-        1.  [future](#org8659365)
-    2.  [Output](#org5d27ab3)
-    3.  [Build](#org22f9977)
-        1.  [Prerequisites](#orge2b2c3a)
-        2.  [Building](#org2ad643b)
-
-
-<a id="orga056299"></a>
-
-# Regular triangulations for Cosmology
+Regular triangulations for Cosmology {#sec:orgbf10868}
+====================================
 
 Regular triangulations are a very useful tool compute the **geometric
-adhesion model**.  This code solves Burgers' equation
+adhesion model**. This code solves Burgers’ equation
 
-\[\frac{\partial u}{\partial t} + (u \cdot \grad)u = \nu \grad^2 u.\]
+$$\frac{\partial u}{\partial t} + (u \cdot \grad)u = \nu \grad^2 u.$$
 
 This equation is solved using geometric methods available in the
 Computational Geometry Algorithms Library (CGAL).
 
-
-<a id="org30fcbbe"></a>
-
-## Features
+Features {#sec:orgb3c7d53}
+--------
 
 -   generate initial conditions
+
 -   create glass files
+
 -   compute Zeldovich displacements
+
 -   compute the adhesion model
+
 -   work in 2D or 3D
+
 -   output in PLY
 
+### future {#sec:org48fa9d4}
 
-<a id="org8659365"></a>
+1.  (merge from git:jhidding/adhesion-example repo) \[sec:orgf6612ee\]
 
-### future
+    -   OBJ triangle output (splits polygons into triangles, but renders
+        better)
 
-1.  (merge from git:jhidding/adhesion-example repo)
-
-    -   OBJ triangle output (splits polygons into triangles, but renders better)
     -   Lloyd iteration glasses
 
-2.  Todo
+2.  Todo \[sec:org3579565\]
 
     -   periodic triangulations
+
     -   use HDF5
+
     -   increase test coverage
 
+Output {#sec:org06f27f0}
+------
 
-<a id="org5d27ab3"></a>
+The output of the 3D adhesion code is in PLY format. PLY is a very
+liberal specification that supports storing polygons of any number.
+Filaments and wall structures are stored in different files (clusters
+are stored separately). We associate a density with each element in the
+PLY file. This is within specification but not *canon*, so some
+applications claiming to support PLY (like paraview) may crash trying to
+load these files.
 
-## Output
+Build {#sec:orgb7951f2}
+-----
 
-The output of the 3D adhesion code is in PLY format. PLY is a very liberal specification that
-supports storing polygons of any number. Filaments and wall structures are stored in different
-files (clusters are stored separately). We associate a density with each element in the PLY file.
-This is within specification but not *canon*, so some applications claiming to support PLY
-(like paraview) may crash trying to load these files.
+### Prerequisites {#sec:orgf108ac3}
 
+-   CGAL &gt;= 4.11
 
-<a id="org22f9977"></a>
+-   C++17 compatible compiler (GCC &gt;= 7, LLVM/clang &gt;= 4)
 
-## Build
-
-
-<a id="orge2b2c3a"></a>
-
-### Prerequisites
-
--   CGAL >= 4.11
--   C++17 compatible compiler (GCC >= 7, LLVM/clang >= 4)
 -   Meson / ninja build system
+
 -   FFTW3
+
 -   GNU Scientific Library (GSL)
+
 -   (for unit testing only) GTest
 
-
-<a id="org2ad643b"></a>
-
-### Building
+### Building {#sec:orgf598aa9}
 
 In the project folder, run `meson` and subsequently `ninja`.
 
@@ -93,4 +81,3 @@ In the project folder, run `meson` and subsequently `ninja`.
 To run unit tests (currently only tests PLY output code)
 
     build $ ninja test
-
