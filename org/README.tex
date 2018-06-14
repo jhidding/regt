@@ -1,0 +1,107 @@
+% Created 2018-04-10 di 10:37
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\author{Johannes Hidding}
+\date{\today}
+\title{}
+\hypersetup{
+ pdfauthor={Johannes Hidding},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 25.2.2 (Org mode 9.1.9)}, 
+ pdflang={English}}
+\begin{document}
+
+\tableofcontents
+
+\section{Regular triangulations for Cosmology}
+\label{sec:orgbf10868}
+
+Regular triangulations are a very useful tool compute the \textbf{geometric
+adhesion model}.  This code solves Burgers' equation
+
+\[\frac{\partial u}{\partial t} + (u \cdot \grad)u = \nu \grad^2 u.\]
+
+This equation is solved using geometric methods available in the
+Computational Geometry Algorithms Library (CGAL).
+
+\subsection{Features}
+\label{sec:orgb3c7d53}
+\begin{itemize}
+\item generate initial conditions
+\item create glass files
+\item compute Zeldovich displacements
+\item compute the adhesion model
+\item work in 2D or 3D
+\item output in PLY
+\end{itemize}
+
+\subsubsection{future}
+\label{sec:org48fa9d4}
+\begin{enumerate}
+\item (merge from git:jhidding/adhesion-example repo)
+\label{sec:orgf6612ee}
+\begin{itemize}
+\item OBJ triangle output (splits polygons into triangles, but renders better)
+\item Lloyd iteration glasses
+\end{itemize}
+\item Todo
+\label{sec:org3579565}
+\begin{itemize}
+\item periodic triangulations
+\item use HDF5
+\item increase test coverage
+\end{itemize}
+\end{enumerate}
+
+\subsection{Output}
+\label{sec:org06f27f0}
+The output of the 3D adhesion code is in PLY format. PLY is a very liberal specification that
+supports storing polygons of any number. Filaments and wall structures are stored in different
+files (clusters are stored separately). We associate a density with each element in the PLY file.
+This is within specification but not \emph{canon}, so some applications claiming to support PLY
+(like paraview) may crash trying to load these files.
+
+\subsection{Build}
+\label{sec:orgb7951f2}
+\subsubsection{Prerequisites}
+\label{sec:orgf108ac3}
+\begin{itemize}
+\item CGAL >= 4.11
+\item C++17 compatible compiler (GCC >= 7, LLVM/clang >= 4)
+\item Meson / ninja build system
+\item FFTW3
+\item GNU Scientific Library (GSL)
+\item (for unit testing only) GTest
+\end{itemize}
+
+\subsubsection{Building}
+\label{sec:orgf598aa9}
+In the project folder, run \texttt{meson} and subsequently \texttt{ninja}.
+\begin{verbatim}
+$ meson build --buildtype release
+...
+$ cd build
+build$ ninja
+\end{verbatim}
+
+To run unit tests (currently only tests PLY output code)
+
+\begin{verbatim}
+build $ ninja test
+\end{verbatim}
+\end{document}

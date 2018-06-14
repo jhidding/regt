@@ -1,6 +1,7 @@
 #include "../base/system.hh"
 #include "../base/format.hh"
 #include "adhesion.hh"
+#include "adhesion_periodic.hh"
 #include "velocity.hh"
 #include "ply_writer.hh"
 
@@ -12,34 +13,48 @@
 using namespace System;
 using namespace Conan;
 
-template <unsigned R>
-ptr<Adhesion<R>> make_adhesion(Header const &H);
+template <unsigned R, BoxTopology Topology>
+ptr<Adhesion<R, Topology>> make_adhesion(Header const &H);
 
 template <>
-ptr<Adhesion<2>> make_adhesion<2>(Header const &H)
+ptr<Adhesion<2, NonPeriodic>> make_adhesion<2, NonPeriodic>(Header const &H)
 {
 	auto box = make_ptr<Box<2>>(H.get<unsigned>("N"), H.get<float>("size"));
-	return make_ptr<Velocity<Adhesion<2>>>(box);
+	return make_ptr<Velocity<Adhesion<2, NonPeriodic>>>(box);
 }
 
 template <>
-ptr<Adhesion<3>> make_adhesion<3>(Header const &H)
+ptr<Adhesion<3, NonPeriodic>> make_adhesion<3, NonPeriodic>(Header const &H)
 {
 	auto box = make_ptr<Box<3>>(H.get<unsigned>("N"), H.get<float>("size"));
 	if (H.get<bool>("ply"))
 	{
-		return make_ptr<PLY_writer<Velocity<Adhesion<3>>>>(box);
+		return make_ptr<PLY_writer<Velocity<Adhesion<3, NonPeriodic>>>>(box);
 	}
 	else
 	{
-		return make_ptr<Velocity<Adhesion<3>>>(box);
+		return make_ptr<Velocity<Adhesion<3, NonPeriodic>>>(box);
 	}
 }
 
-template <unsigned R>
-ptr<Adhesion<R>> make_adhesion2(Header const &H, Array<double> phi)
+template <>
+ptr<Adhesion<3, Periodic>> make_adhesion<3, Periodic>(Header const &H)
 {
-	ptr<Adhesion<R>> adh = make_adhesion<R>(H);
+	auto box = make_ptr<Box<3>>(H.get<unsigned>("N"), H.get<float>("size"));
+	if (H.get<bool>("ply"))
+	{
+		return make_ptr<PLY_writer<Velocity<Adhesion<3, Periodic>>>>(box);
+	}
+	else
+	{
+		return make_ptr<Velocity<Adhesion<3, Periodic>>>(box);
+	}
+}
+
+template <unsigned R, BoxTopology Topology>
+ptr<Adhesion<R,Topology>> make_adhesion2(Header const &H, Array<double> phi)
+{
+	ptr<Adhesion<R,Topology>> adh = make_adhesion<R,Topology>(H);
 	double t = H.get<double>("time");
 
 	if (H.get<bool>("glass"))
@@ -65,7 +80,7 @@ ptr<Adhesion<R>> make_adhesion2(Header const &H, Array<double> phi)
 	}
 }
 
-template <unsigned R>
+template <unsigned R, BoxTopology Topology>
 void regular_triangulation2(std::ostream &fo, Header const &H, Array<double> phi)
 {
 	if (H["smooth"] != "0")
@@ -85,7 +100,7 @@ void regular_triangulation2(std::ostream &fo, Header const &H, Array<double> phi
 		std::cerr << "[done]\n";
 	}
 
-	auto adh = make_adhesion2<R>(H, phi);
+	auto adh = make_adhesion2<R, Topology>(H, phi);
 
 	std::cerr << "writing needed info ... ";
 	adh->save_all(H);
@@ -97,7 +112,9 @@ void cmd_regt2(int argc, char **argv)
 	ss << time(NULL);
 	std::string timed_seed = ss.str();
 
-	Argv C = read_arguments(argc, argv,
+	Argv C = read_arguments(
+        argc, argv,
+
 		Option({0, "h", "help", "false",
 			"print help on the use of this program."}),
 
@@ -108,6 +125,9 @@ void cmd_regt2(int argc, char **argv)
 			"smooth the initial conditions before running adhesion. "
 			"By default, no smoothing is done, otherwise this parameter "
 			"is the value of sigma. "}),
+
+        Option({0, "pp", "periodic", "false",
+                    "use periodic regular triangulations (only in 3D)."}),
 
 		Option({0, "g", "glass", "false",
 			"use a glass file in stead of a regular grid pattern. "
@@ -178,17 +198,18 @@ void cmd_regt2(int argc, char **argv)
 	//std::cerr << "box: " << box->N() << " data: " << potential.size() << std::endl;
 
 	// run 2 or 3 dimensional version.
-	switch (H.get<unsigned>("dim"))
-	{
-		case 2: regular_triangulation2<2>(fo, H, potential);
-			break;
-
-		case 3: regular_triangulation2<3>(fo, H, potential);
-			break;
-	}
+	if (H.get<unsigned>("dim") == 2) {
+		regular_triangulation2<2, NonPeriodic>(fo, H, potential);
+    } else if (H.get<unsigned>("dim") == 3 && H.get<bool>("periodic")) {
+		regular_triangulation2<3, Periodic>(fo, H, potential);
+	} else if (H.get<unsigned>("dim") == 3) {
+		regular_triangulation2<3, NonPeriodic>(fo, H, potential);
+    } else {
+        std::cerr << "Error: incompatible configuration for regular triangulation.\n";
+        exit(0);
+    }
 
 	fo.close();
 }
 
 Global<Command> _REGT2("adhesion", cmd_regt2);
-
